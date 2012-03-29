@@ -1,0 +1,679 @@
+# -*- coding: utf-8 -*-
+
+# Copyright (C) 2011 Association of Universities for Research in
+# Astronomy (AURA)
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+#
+#     1. Redistributions of source code must retain the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer.
+#
+#     2. Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials
+#       provided with the distribution.
+#
+#     3. The name of AURA and its representatives may not be used to
+#       endorse or promote products derived from this software without
+#       specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY AURA ``AS IS'' AND ANY EXPRESS OR
+# IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL AURA BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+# SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+# STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+# OF THE POSSIBILITY OF SUCH DAMAGE.
+
+"""
+The `polygon` module defines the `SphericalPolygon` class for managing
+polygons on the unit sphere.
+"""
+from __future__ import division, print_function
+
+# STDLIB
+from copy import copy
+
+# THIRD-PARTY
+import numpy as np
+
+# LOCAL
+#from . import great_circle_arc
+#from . import vector
+import great_circle_arc
+import vector
+
+__all__ = ['SphericalPolygon']
+
+
+class SphericalPolygon(object):
+    ur"""
+    Polygons are represented by both a set of points (in
+    Cartesian (*x*, *y*, *z*) normalized on the unit sphere),
+    and an inside point.  The inside point is necessary, because
+    both the inside and outside of the polygon are finite areas
+    on the great sphere, and therefore we need a way of
+    specifying which is which.
+    """
+
+    def __init__(self, points, inside):
+        ur"""
+        Parameters
+        ----------
+        points : An Nx3 array of (*x*, *y*, *z*) triples in vector space
+            These points define the boundary of the polygon.  It must
+            be "closed", i.e., the last point is the same as the first.
+
+            It may contain zero points, in which it defines the null
+            polygon.  It may not contain one, two or three points.
+            Four points are needed to define a triangle, since the
+            polygon must be closed.
+
+        inside : An (*x*, *y*, *z*) triple
+            This point must be inside the polygon.
+        """
+        if len(points) == 0:
+            pass
+        elif len(points) < 3:
+            raise ValueError("Polygon made of too few points")
+        else:
+            assert np.array_equal(points[0], points[-1]), 'Polygon is not closed'
+        self._points = np.asanyarray(points)
+        self._inside = np.asanyarray(inside)
+
+        # TODO: Detect self-intersection and fix
+
+    def __copy__(self):
+        return self.__class__(np.copy(self._points), np.copy(self._inside))
+
+    @property
+    def points(self):
+        """
+        The points defining the polygon.  It is an Nx3 array of
+        (*x*, *y*, *z*) vectors.  The polygon will be explicitly
+        closed, i.e., the first and last points are the same.
+        """
+        return self._points
+
+    @property
+    def inside(self):
+        """
+        Get the inside point of the polygon.
+        """
+        return self._inside
+
+    @classmethod
+    def from_radec(cls, ra, dec, center=None, degrees=True):
+        ur"""
+        Create a new `SphericalPolygon` from a list of (*ra*, *dec*)
+        points.
+
+        Parameters
+        ----------
+        ra, dec : 1-D arrays of the same length
+            The vertices of the polygon in right-ascension and
+            declination.  It must be \"closed\", i.e., that is, the
+            last point is the same as the first.
+
+        center : (*ra*, *dec*) pair, optional
+            A point inside of the polygon to define its inside.  If no
+            *center* point is provided, the mean of the polygon's
+            points in vector space will be used.  That approach may
+            not work for concave polygons.
+
+        degrees : bool, optional
+            If `True`, (default) *ra* and *dec* are in decimal degrees,
+            otherwise in radians.
+
+        Returns
+        -------
+        polygon : `SphericalPolygon` object
+        """
+        # Convert to Cartesian
+        x, y, z = vector.radec_to_vector(ra, dec, degrees=degrees)
+
+        if center is None:
+            xc = x.mean()
+            yc = y.mean()
+            zc = z.mean()
+            center = vector.normalize_vector(xc, yc, zc)
+        else:
+            center = vector.radec_to_vector(*center, degrees=degrees)
+
+        return cls(np.dstack((x, y, z))[0], center)
+
+    @classmethod
+    def from_cone(cls, ra, dec, radius, degrees=True, steps=16.0):
+        ur"""
+        Create a new `SphericalPolygon` from a cone (otherwise known
+        as a "small circle") defined using (*ra*, *dec*, *radius*).
+
+        The cone is not represented as an ideal circle on the sphere,
+        but as a series of great circle arcs.  The resolution of this
+        conversion can be controlled using the *steps* parameter.
+
+        Parameters
+        ----------
+        ra, dec : float scalars
+            This defines the center of the cone
+
+        radius : float scalar
+            The radius of the cone
+
+        degrees : bool, optional
+            If `True`, (default) *ra*, *dec* and *radius* are in
+            decimal degrees, otherwise in radians.
+
+        steps : int, optional
+            The number of steps to use when converting the small
+            circle to a polygon.
+
+        Returns
+        -------
+        polygon : `SphericalPolygon` object
+        """
+        u, v, w = vector.radec_to_vector(ra, dec, degrees=degrees)
+        if degrees:
+            radius = np.deg2rad(radius)
+
+        # Get an arbitrary perpendicular vector.  This be be obtained
+        # by crossing (u, v, w) with any unit vector that is not itself.
+        which_min = np.argmin([u, v, w])
+        if which_min == 0:
+            perp = np.cross([u, v, w], [1., 0., 0.])
+        elif which_min == 1:
+            perp = np.cross([u, v, w], [0., 1., 0.])
+        else:
+            perp = np.cross([u, v, w], [0., 0., 1.])
+
+        # Rotate by radius around the perpendicular vector to get the
+        # "pen"
+        x, y, z = vector.rotate_around(
+            u, v, w, perp[0], perp[1], perp[2], radius, degrees=False)
+
+        # Then rotate the pen around the center point all 360 degrees
+        C = np.linspace(0, np.pi * 2.0, steps)
+        # Ensure that the first and last elements are exactly the
+        # same.  2π should equal 0, but with rounding error that isn't
+        # always the case.
+        C[-1] = 0
+        X, Y, Z = vector.rotate_around(x, y, z, u, v, w, C, degrees=False)
+
+        return cls(np.dstack((X, Y, Z))[0], (u, v, w))
+
+    @classmethod
+    def from_wcs(cls, fitspath, steps=1, crval=None):
+        ur"""
+        Create a new `SphericalPolygon` from the footprint of a FITS
+        WCS specification.
+
+        This method requires having `pywcs` and `pyfits` installed.
+
+        Parameters
+        ----------
+        fitspath : path to a FITS file, `pyfits.Header`, or `pywcs.WCS`
+            Refers to a FITS header containing a WCS specification.
+
+        steps : int, optional
+            The number of steps along each edge to convert into
+            polygon edges.
+
+        Returns
+        -------
+        polygon : `SphericalPolygon` object
+        """
+        import pywcs
+        import pyfits
+
+        if isinstance(fitspath, pyfits.Header):
+            header = fitspath
+            wcs = pywcs.WCS(header)
+        elif isinstance(fitspath, pywcs.WCS):
+            wcs = fitspath
+        else:
+            wcs = pywcs.WCS(fitspath)
+        if crval is not None:
+            wcs.wcs.crval = crval
+        xa, ya = [wcs.naxis1, wcs.naxis2]
+
+        length = steps * 4 + 1
+        X = np.empty(length)
+        Y = np.empty(length)
+
+        # Now define each of the 4 edges of the quadrilateral
+        X[0      :steps  ] = np.linspace(1, xa, steps, False)
+        Y[0      :steps  ] = 1
+        X[steps  :steps*2] = xa
+        Y[steps  :steps*2] = np.linspace(1, ya, steps, False)
+        X[steps*2:steps*3] = np.linspace(xa, 1, steps, False)
+        Y[steps*2:steps*3] = ya
+        X[steps*3:steps*4] = 1
+        Y[steps*3:steps*4] = np.linspace(ya, 1, steps, False)
+        X[-1]              = 1
+        Y[-1]              = 1
+
+        # Use wcslib to convert to (ra, dec)
+        ra, dec = wcs.all_pix2sky(X, Y, 1)
+
+        # Convert to Cartesian
+        x, y, z = vector.radec_to_vector(ra, dec)
+
+        # Calculate an inside point
+        ra, dec = wcs.all_pix2sky(xa / 2.0, ya / 2.0, 1)
+        xc, yc, zc = vector.radec_to_vector(ra, dec)
+
+        return cls(np.dstack((x, y, z))[0], (xc[0], yc[0], zc[0]))
+
+    def contains_point(self, point):
+        ur"""
+        Determines if this `SphericalPolygon` contains a given point.
+
+        Parameters
+        ----------
+        point : an (*x*, *y*, *z*) triple
+            The point to test.
+
+        Returns
+        -------
+        contains : bool
+            Returns `True` if the polygon contains the given *point*.
+        """
+        P = self._points
+        r = self._inside
+        point = np.asanyarray(point)
+
+        intersects = great_circle_arc.intersects(P[:-1], P[1:], r, point)
+        crossings = np.sum(intersects)
+
+        return (crossings % 2) == 0
+
+    def intersects_poly(self, other):
+        ur"""
+        Determines if this `SphericalPolygon` intersects another
+        `SphericalPolygon`.
+
+        This method is much faster than actually computing the
+        intersection region between two polygons.
+
+        Parameters
+        ----------
+        other : `SphericalPolygon`
+
+        Returns
+        -------
+        intersects : bool
+            Returns `True` if this polygon intersects the *other*
+            polygon.
+
+        Notes
+        -----
+
+        The algorithm proceeds as follows:
+
+            1. Determine if any single point of one polygon is contained
+               within the other.
+
+            2. Deal with the case where only the edges overlap as in::
+
+               :       o---------o
+               :  o----+---------+----o
+               :  |    |         |    |
+               :  o----+---------+----o
+               :       o---------o
+
+               In this case, an edge from one polygon must cross an
+               edge from the other polygon.
+        """
+        assert isinstance(other, SphericalPolygon)
+
+        # The easy case is in which a point of one polygon is
+        # contained in the other polygon.
+        for point in other._points:
+            if self.contains_point(point):
+                return True
+        for point in self._points:
+            if other.contains_point(point):
+                return True
+
+        # The hard case is when only the edges overlap, as in:
+        #
+        #         o---------o
+        #    o----+---------+----o
+        #    |    |         |    |
+        #    o----+---------+----o
+        #         o---------o
+        #
+        for i in range(len(self._points) - 1):
+            A = self._points[i]
+            B = self._points[i+1]
+            if np.any(great_circle_arc.intersects(
+                A, B, other._points[:-1], other._points[1:])):
+                return True
+        return False
+
+    def intersects_arc(self, a, b):
+        """
+        Determines if this `SphericalPolygon` intersects or contains
+        the given arc.
+        """
+        return self.contains_point(great_circle_arc.midpoint(a, b))
+
+        if self.contains_point(a) and self.contains_point(b):
+            return True
+
+        P = self._points
+        intersects = great_circle_arc.intersects(P[:-1], P[1:], a, b)
+        if np.any(intersects):
+            return True
+        return False
+
+    def area(self):
+        ur"""
+        Returns the area of the polygon on the unit sphere.
+
+        The algorithm is not able to compute the area of polygons
+        that are larger than half of the sphere.  Therefore, the
+        area will always be less than 2π.
+
+        The area is computed based on the sum of the radian angles:
+
+        .. math::
+
+            S = \sum^n_{i=0} \theta_i - (n - 2) \pi
+        """
+        if len(self._points) < 3:
+            return np.array(0.0)
+
+        A = self._points[:-1]
+        B = np.roll(A, 1, 0)
+        C = np.roll(B, 1, 0)
+
+        angles = great_circle_arc.angle(A, B, C, degrees=False)
+
+        midpoints = great_circle_arc.midpoint(A, C)
+        interior = [self.contains_point(x) for x in midpoints]
+        angles = np.where(interior, angles, 2.*np.pi - angles)
+
+        sum = np.sum(angles)
+        area = sum - float(len(angles) - 2) * np.pi
+
+        return area
+
+    def union(self, other):
+        """
+        Return a new `SphericalPolygon` that is the union of *self*
+        and *other*.
+
+        If the polygons are disjoint, they result will be connected
+        using cut lines.  For example::
+
+            : o---------o
+            : |         |
+            : o---------o=====o----------o
+            :                 |          |
+            :                 o----------o
+
+        Parameters
+        ----------
+        other : `SphericalPolygon`
+
+        Returns
+        -------
+        polygon : `SphericalPolygon` object
+
+        See also
+        --------
+        multi_union
+
+        Notes
+        -----
+        For implementation details, see the :mod:`~sphere.graph`
+        module.
+        """
+        import graph
+        g = graph.Graph([self, other])
+
+        polygon = g.union()
+
+        return self.__class__(polygon, self._inside)
+
+    @classmethod
+    def multi_union(cls, polygons, method='parallel'):
+        """
+        Return a new `SphericalPolygon` that is the union of all of the
+        polygons in *polygons*.
+
+        Parameters
+        ----------
+        polygons : sequence of `SphericalPolygon`
+
+        method : 'parallel' or 'serial', optional
+            Specifies the method that is used to perform the unions:
+
+               - 'parallel' (default): A graph is built using all of
+                 the polygons, and the union operation is computed on
+                 the entire thing globally.
+
+               - 'serial': The polygon is built in steps by adding one
+                 polygon at a time and unioning at each step.
+
+            This option is provided because one may be faster than the
+            other depending on context, but it primarily exposed for
+            testing reasons.  Both modes should theoretically provide
+            equivalent results.
+
+        Returns
+        -------
+        polygon : `SphericalPolygon` object
+
+        See also
+        --------
+        union
+        """
+        assert len(polygons)
+        for polygon in polygons:
+            assert isinstance(polygon, SphericalPolygon)
+
+        import graph
+
+        if method.lower() == 'parallel':
+            g = graph.Graph(polygons)
+            polygon = g.union()
+            return cls(polygon, polygons[0]._inside)
+        elif method.lower() == 'serial':
+            result = copy(polygons[0])
+            for polygon in polygons[1:]:
+                result = result.union(polygon)
+            return result
+        else:
+            raise ValueError("method must be 'parallel' or 'serial'")
+
+    @staticmethod
+    def _find_new_inside(points, polygons):
+        """
+        Finds an acceptable inside point inside of *points* that is
+        also inside of *polygons*.  Used by the intersection
+        algorithm, and is really only useful in that context because
+        it requires existing polygons with known inside points.
+        """
+        if len(points) < 4:
+            return np.array([0, 0, 0])
+
+        # Special case for a triangle
+        if len(points) == 4:
+            return np.sum(points[:3]) / 3.0
+
+        for i in range(len(points) - 1):
+            A = points[i]
+            # Skip the adjacent point, since it is by definition on
+            # the edge of the polygon, not potentially running through
+            # the middle.
+            for j in range(i + 2, len(points) - 1):
+                B = points[j]
+                C = great_circle_arc.midpoint(A, B)
+                in_all = True
+                for polygon in polygons:
+                    if not polygon.contains_point(C):
+                        in_all = False
+                        break
+                if in_all:
+                    return C
+
+        raise RuntimeError("Suitable inside point could not be found")
+
+    def intersection(self, other):
+        """
+        Return a new `SphericalPolygon` that is the intersection of
+        *self* and *other*.
+
+        If the intersection is empty, a `SphericalPolygon` with zero
+        points will be returned.
+
+        If the result is disjoint, the pieces will be connected using
+        cut lines.  For example::
+
+            : o---------o
+            : |         |
+            : o---------o=====o----------o
+            :                 |          |
+            :                 o----------o
+
+        Parameters
+        ----------
+        other : `SphericalPolygon`
+
+        Returns
+        -------
+        polygon : `SphericalPolygon` object
+
+        Notes
+        -----
+        For implementation details, see the :mod:`~sphere.graph`
+        module.
+        """
+        # if not self.intersects_poly(other):
+        #     return self.__class__([], [0, 0, 0])
+
+        import graph
+        g = graph.Graph([self, other])
+
+        polygon = g.intersection()
+
+        inside = self._find_new_inside(polygon, [self, other])
+
+        return self.__class__(polygon, inside)
+
+    @classmethod
+    def multi_intersection(cls, polygons, method='parallel'):
+        """
+        Return a new `SphericalPolygon` that is the intersection of
+        all of the polygons in *polygons*.
+
+        Parameters
+        ----------
+        polygons : sequence of `SphericalPolygon`
+
+        method : 'parallel' or 'serial', optional
+            Specifies the method that is used to perform the
+            intersections:
+
+               - 'parallel' (default): A graph is built using all of
+                 the polygons, and the intersection operation is computed on
+                 the entire thing globally.
+
+               - 'serial': The polygon is built in steps by adding one
+                 polygon at a time and computing the intersection at
+                 each step.
+
+            This option is provided because one may be faster than the
+            other depending on context, but it primarily exposed for
+            testing reasons.  Both modes should theoretically provide
+            equivalent results.
+
+        Returns
+        -------
+        polygon : `SphericalPolygon` object
+        """
+        assert len(polygons)
+        for polygon in polygons:
+            assert isinstance(polygon, SphericalPolygon)
+
+        # for i in range(len(polygons)):
+        #     polyA = polygons[i]
+        #     for j in range(i + 1, len(polygons)):
+        #         polyB = polygons[j]
+        #         if not polyA.intersects_poly(polyB):
+        #             return cls([], [0, 0, 0])
+
+        import graph
+
+        if method.lower() == 'parallel':
+            g = graph.Graph(polygons)
+            polygon = g.intersection()
+            inside = cls._find_new_inside(polygon, polygons)
+            return cls(polygon, inside)
+        elif method.lower() == 'serial':
+            result = copy(polygons[0])
+            for polygon in polygons[1:]:
+                result = result.intersection(polygon)
+            return result
+        else:
+            raise ValueError("method must be 'parallel' or 'serial'")
+
+    def overlap(self, other):
+        ur"""
+        Returns the fraction of *self* that is overlapped by *other*.
+
+        Let *self* be *a* and *other* be *b*, then the overlap is
+        defined as:
+
+        .. math::
+
+            \frac{S_a}{S_{a \cap b}}
+
+        Parameters
+        ----------
+        other : `SphericalPolygon`
+
+        Returns
+        -------
+        frac : float
+            The fraction of *self* that is overlapped by *other*.
+        """
+        s1 = self.area()
+        intersection = self.intersection(other)
+        s2 = intersection.area()
+        return s2 / s1
+
+    def draw(self, m, **plot_args):
+        """
+        Draws the polygon in a matplotlib.Basemap axes.
+
+        Parameters
+        ----------
+        m : Basemap axes object
+
+        **plot_args : Any plot arguments to pass to basemap
+        """
+        if not len(self._points):
+            return
+        if not len(plot_args):
+            plot_args = {color: 'blue'}
+        points = self._points
+        ra, dec = vector.vector_to_radec(
+            points[:, 0], points[:, 1], points[:, 2],
+            degrees=True)
+        for r0, d0, r1, d1 in zip(ra[0:-1], dec[0:-1], ra[1:], dec[1:]):
+            m.drawgreatcircle(r0, d0, r1, d1, **plot_args)
+        ra, dec = vector.vector_to_radec(
+            *self._inside, degrees=True)
+        x, y = m(ra, dec)
+        m.scatter(x, y, 1, **plot_args)
+
