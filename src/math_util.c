@@ -4,6 +4,8 @@
 
 #include "numpy/npy_3kcompat.h"
 
+#include "numpy/npy_math.h"
+
 /*
  *****************************************************************************
  **                            BASICS                                       **
