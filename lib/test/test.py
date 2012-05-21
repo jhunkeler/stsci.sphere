@@ -10,7 +10,7 @@ from sphere import polygon
 from sphere import vector
 
 from .test_util import *
-
+from test_shared import resolve_imagename
 
 graph.DEBUG = True
 
@@ -155,7 +155,7 @@ def test_point_in_poly():
 
 def test_point_in_poly_lots():
     import pyfits
-    fits = pyfits.open(os.path.join(ROOT_DIR, '1904-66_TAN.fits'))
+    fits = pyfits.open(resolve_imagename(ROOT_DIR, '1904-66_TAN.fits'))
     header = fits[0].header
 
     poly1 = polygon.SphericalPolygon.from_wcs(

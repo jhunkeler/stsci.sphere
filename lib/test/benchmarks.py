@@ -5,14 +5,14 @@ import time
 import numpy as np
 from sphere import *
 from test_util import *
+from test_shared import resolve_imagename
 
 def point_in_poly_lots():
-    poly1 = SphericalPolygon.from_wcs(
-        os.path.join(ROOT_DIR, '1904-66_TAN.fits'), 64, crval=[0, 87])
-    poly2 = SphericalPolygon.from_wcs(
-        os.path.join(ROOT_DIR, '1904-66_TAN.fits'), 64, crval=[20, 89])
-    poly3 = SphericalPolygon.from_wcs(
-        os.path.join(ROOT_DIR, '1904-66_TAN.fits'), 64, crval=[180, 89])
+    image_name = resolve_imagename(ROOT_DIR,'1904-66_TAN.fits')
+    
+    poly1 = SphericalPolygon.from_wcs(image_name, 64, crval=[0, 87])
+    poly2 = SphericalPolygon.from_wcs(image_name, 64, crval=[20, 89])
+    poly3 = SphericalPolygon.from_wcs(image_name, 64, crval=[180, 89])
 
     points = get_point_set(density=25)
 

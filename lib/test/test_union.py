@@ -14,6 +14,7 @@ from numpy.testing import assert_array_almost_equal
 
 # LOCAL
 from sphere import polygon
+from test_shared import resolve_imagename
 
 GRAPH_MODE = False
 ROOT_DIR = os.path.join(os.path.dirname(__file__), 'data')
@@ -77,7 +78,7 @@ class union_test:
 @union_test(0, 90)
 def test1():
     import pyfits
-    fits = pyfits.open(os.path.join(ROOT_DIR, '1904-66_TAN.fits'))
+    fits = pyfits.open(resolve_imagename(ROOT_DIR, '1904-66_TAN.fits'))
     header = fits[0].header
 
     poly1 = polygon.SphericalPolygon.from_wcs(
