@@ -665,7 +665,7 @@ class SphericalPolygon(object):
         if not len(self._points):
             return
         if not len(plot_args):
-            plot_args = {color: 'blue'}
+            plot_args = {'color': 'blue'}
         points = self._points
         ra, dec = vector.vector_to_radec(
             points[:, 0], points[:, 1], points[:, 2],
@@ -676,4 +676,3 @@ class SphericalPolygon(object):
             *self._inside, degrees=True)
         x, y = m(ra, dec)
         m.scatter(x, y, 1, **plot_args)
-
