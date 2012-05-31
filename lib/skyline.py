@@ -53,6 +53,9 @@ Examples
 """
 from __future__ import division, print_function
 
+# STDLIB
+from copy import deepcopy
+
 # THIRD-PARTY
 import pyfits
 from stwcs import wcsutil
@@ -65,6 +68,7 @@ __version__ = '0.1a'
 __vdate__ = '31-May-2012'
 
 class SkyLineMember(object):
+    
     def __init__(self, fname, ext):
         """Container for SkyLine members.
 
@@ -132,9 +136,12 @@ class SkyLine(SphericalPolygon):
         self._members = poly_list
 
         # Put mosaic of all the chips in SkyLine
-        mosaic = SphericalPolygon.multi_union(self.polygons)
+        mosaic = self.multi_union(self.polygons)
         self._points = mosaic.points
         self._inside = mosaic.inside
+
+    def __repr__(self):
+        return 'SkyLine(%r, %r, %r)' % (self.points, self.inside, self.members)
 
     @property
     def members(self):
@@ -145,6 +152,59 @@ class SkyLine(SphericalPolygon):
     def polygons(self):
         """List of SkyLineMember polygons."""
         return [m.polygon for m in self.members]
+
+    @classmethod
+    def from_radec(cls, ra, dec, center=None, degrees=True):
+        """See SphericalPolygon."""
+        return SphericalPolygon.from_radec(ra, dec, center=center,
+                                           degrees=degrees)
+
+    @classmethod
+    def from_cone(cls, ra, dec, radius, degrees=True, steps=16.0):
+        """See SphericalPolygon."""
+        return SphericalPolygon.from_cone(ra, dec, radius, degrees=degrees,
+                                          steps=steps)
+
+    @classmethod
+    def from_wcs(cls, fitspath, steps=1, crval=None):
+        """See SphericalPolygon."""
+        return SphericalPolygon.from_wcs(fitspath, steps=steps, crval=crval)
+
+    @classmethod
+    def multi_union(cls, polygons, method='parallel'):
+        """See SphericalPolygon."""
+        return SphericalPolygon.multi_union(polygons, method=method)
+
+    def union(self, other):
+        """
+        Updates *self* with the union of *self* and *other*.
+
+        Parameters
+        ----------
+        self: obj
+            `SkyLine` instance to be updated.
+
+        other: obj
+            `SkyLine` instance to be added.
+
+        Examples
+        --------
+        >>> s1 = SkyLine('image1.fits')
+        >>> s2 = SkyLine('image2.fits')
+        >>> s1.union(s2)  # s1 is updated
+
+        See also
+        --------
+        sphere.polygon.SphericalPolygon.union
+        
+        """
+#        all_poly = self.multi_union(self.polygons + other.polygons)
+
+# Need to update
+#        self._points
+#        self._inside
+#        self._members
+        pass
 
 # Overload parent class with following changes
 #    a. add own attr
@@ -165,13 +225,6 @@ class SkyLine(SphericalPolygon):
     def find_intersection(self, skyline):
         """
         Return WCS object of overlap of 2 skylines.
-
-        """
-        pass
-
-    def within(self, pos):
-        """
-        Return bool if pos is in skyline or not.
 
         """
         pass

@@ -39,7 +39,7 @@ polygons on the unit sphere.
 from __future__ import division, print_function
 
 # STDLIB
-from copy import copy
+from copy import copy, deepcopy
 
 # THIRD-PARTY
 import numpy as np
@@ -89,7 +89,7 @@ class SphericalPolygon(object):
         # TODO: Detect self-intersection and fix
 
     def __copy__(self):
-        return self.__class__(np.copy(self._points), np.copy(self._inside))
+        return deepcopy(self)
 
     def __repr__(self):
         return 'SphericalPolygon(%r, %r)' % (self.points, self.inside)
