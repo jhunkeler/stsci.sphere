@@ -45,10 +45,8 @@ import weakref
 import numpy as np
 
 # LOCAL
-#from . import great_circle_arc
-#from . import vector
-import great_circle_arc
-import vector
+from sphere import great_circle_arc
+from sphere import vector
 
 # Set to True to enable some sanity checks
 DEBUG = False

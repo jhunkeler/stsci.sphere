@@ -45,10 +45,8 @@ from copy import copy
 import numpy as np
 
 # LOCAL
-#from . import great_circle_arc
-#from . import vector
-import great_circle_arc
-import vector
+from sphere import great_circle_arc
+from sphere import vector
 
 __all__ = ['SphericalPolygon']
 
@@ -92,6 +90,9 @@ class SphericalPolygon(object):
 
     def __copy__(self):
         return self.__class__(np.copy(self._points), np.copy(self._inside))
+
+    def __repr__(self):
+        return 'SphericalPolygon(%r, %r)' % (self.points, self.inside)
 
     @property
     def points(self):
