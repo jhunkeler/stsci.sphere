@@ -4,27 +4,27 @@ API Documentation
 Vectors
 -------
 
-.. automodule:: vector
+.. automodule:: sphere.vector
    :members:
 
 Great circle arcs
 -----------------
 
-.. automodule:: great_circle_arc
+.. automodule:: sphere.great_circle_arc
    :members:
 
 Spherical polygons
 ------------------
 
-.. currentmodule:: polygon
+.. currentmodule:: sphere.polygon
 
-.. automodule:: polygon
+.. automodule:: sphere.polygon
    :members:
 
 Graph operations on polygons
 ----------------------------
 
-.. currentmodule:: graph
+.. currentmodule:: sphere.graph
 
-.. automodule:: graph
+.. automodule:: sphere.graph
    :members:
