@@ -53,12 +53,11 @@ __all__ = ['SphericalPolygon']
 
 class SphericalPolygon(object):
     ur"""
-    Polygons are represented by both a set of points (in
-    Cartesian (*x*, *y*, *z*) normalized on the unit sphere),
-    and an inside point.  The inside point is necessary, because
-    both the inside and outside of the polygon are finite areas
-    on the great sphere, and therefore we need a way of
-    specifying which is which.
+    Polygons are represented by both a set of points (in Cartesian
+    (*x*, *y*, *z*) normalized on the unit sphere), and an inside
+    point.  The inside point is necessary, because both the inside and
+    outside of the polygon are finite areas on the great sphere, and
+    therefore we need a way of specifying which is which.
     """
 
     def __init__(self, points, inside):
@@ -668,11 +667,16 @@ class SphericalPolygon(object):
         if not len(plot_args):
             plot_args = {'color': 'blue'}
         points = self._points
-        ra, dec = vector.vector_to_radec(
-            points[:, 0], points[:, 1], points[:, 2],
-            degrees=True)
-        for r0, d0, r1, d1 in zip(ra[0:-1], dec[0:-1], ra[1:], dec[1:]):
-            m.drawgreatcircle(r0, d0, r1, d1, **plot_args)
+
+        for A, B in zip(points[0:-1], points[1:]):
+            length = great_circle_arc.length(A, B, degrees=True)
+            interpolated = great_circle_arc.interpolate(A, B, length * 4)
+            ra, dec = vector.vector_to_radec(
+                interpolated[:, 0], interpolated[:, 1], interpolated[:, 2],
+                degrees=True)
+            for r0, d0, r1, d1 in zip(ra[0:-1], dec[0:-1], ra[1:], dec[1:]):
+                m.drawgreatcircle(r0, d0, r1, d1, **plot_args)
+
         ra, dec = vector.vector_to_radec(
             *self._inside, degrees=True)
         x, y = m(ra, dec)

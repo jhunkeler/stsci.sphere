@@ -315,3 +315,26 @@ def midpoint(A, B):
     l = np.sqrt(np.sum(P * P, axis=-1))
     l = np.expand_dims(l, 2)
     return P / l
+
+
+def interpolate(A, B, steps=50):
+    """
+    Interpolate along the great circle arc.
+
+    Parameters
+    ----------
+    A, B : (*x*, *y*, *z*) triples or Nx3 arrays of triples
+        The endpoints of the great circle arc.  It is assumed that
+        these points are already normalized.
+
+    steps : int
+        The number of interpolation steps
+
+    Returns
+    -------
+    array : (*x*, *y*, *z*) triples
+        The points interpolated along the great circle arc
+    """
+    t = np.linspace(0, 1.0, steps, endpoint=True).reshape((steps, 1))
+
+    return (t * A) + ((1.0 - t) * B)
