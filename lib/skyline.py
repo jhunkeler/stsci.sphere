@@ -133,15 +133,33 @@ class SkyLine(SphericalPolygon):
         assert len(poly_list) > 0, \
             'SkyLine cannot find SCI ext in {}.'.format(fname)
 
-        self._members = poly_list
-
         # Put mosaic of all the chips in SkyLine
-        mosaic = self.multi_union(self.polygons)
-        self._points = mosaic.points
-        self._inside = mosaic.inside
+        self._update(self.multi_union([m.polygon for m in poly_list]),
+                     poly_list)
 
     def __repr__(self):
         return 'SkyLine(%r, %r, %r)' % (self.points, self.inside, self.members)
+
+    def _update(self, new_polygon, new_members):
+        """
+        Update *self* attributes to use given polygon and
+        new members.
+
+        Parameters
+        ----------
+        self: obj
+            SkyLine instance to update.
+
+        new_polygon: obj
+            SphericalPolygon instance to use.
+
+        new_members: list
+            List of SkyLineMember associated with `new_polygon`.
+            
+        """
+        self._points = new_polygon.points
+        self._inside = new_polygon.inside
+        self._members = new_members
 
     @property
     def members(self):
@@ -178,6 +196,7 @@ class SkyLine(SphericalPolygon):
     def union(self, other):
         """
         Updates *self* with the union of *self* and *other*.
+        Skips *other* members that are already in *self*.
 
         Parameters
         ----------
@@ -198,13 +217,15 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.union
         
         """
-#        all_poly = self.multi_union(self.polygons + other.polygons)
+        new_members = [m for m in other.members if m not in self.members]
+        if len(new_members) == 0:
+            return
 
-# Need to update
-#        self._points
-#        self._inside
-#        self._members
-        pass
+        all_poly = self.multi_union(self.polygons +
+                                    [m.polygon for m in new_members])
+
+        self._update(all_poly, self.members + new_members)
+
 
 # Overload parent class with following changes
 #    a. add own attr
@@ -249,7 +270,4 @@ class SkyLine(SphericalPolygon):
 
 def test():
     """Basic use case."""
-
-    # Allow disjoint?
-
     pass
