@@ -212,7 +212,7 @@ def length(A, B, degrees=True):
 
     .. math::
 
-       \Delta = \arccos(A · B)
+       \Delta = \arccos(A \dot B)
     """
     A = np.asanyarray(A)
     B = np.asanyarray(B)
@@ -325,7 +325,7 @@ def interpolate(A, B, steps=50):
     Parameters
     ----------
     A, B : (*x*, *y*, *z*) triples or Nx3 arrays of triples
-        The endpoints of the great circle arc.  It is assumed that
+        The endpoints of the great circle arc.  It is assumed thats
         these points are already normalized.
 
     steps : int
