@@ -54,7 +54,8 @@ except ImportError:
     HAS_C_UFUNCS = False
 
 
-__all__ = ['angle', 'intersection', 'intersects', 'length', 'midpoint']
+__all__ = ['angle', 'intersection', 'intersects', 'length', 'midpoint',
+           'interpolate']
 
 
 if not HAS_C_UFUNCS:
@@ -318,7 +319,7 @@ def midpoint(A, B):
 
 
 def interpolate(A, B, steps=50):
-    """
+    ur"""
     Interpolate along the great circle arc.
 
     Parameters
@@ -334,7 +335,21 @@ def interpolate(A, B, steps=50):
     -------
     array : (*x*, *y*, *z*) triples
         The points interpolated along the great circle arc
-    """
-    t = np.linspace(0, 1.0, steps, endpoint=True).reshape((steps, 1))
 
-    return (t * A) + ((1.0 - t) * B)
+    Notes
+    -----
+
+    This uses Slerp interpolation where *Ω* is the angle subtended by
+    the arc, and *t* is the parameter 0 <= *t* <= 1.
+
+    .. math::
+
+        \frac{\sin((1 - t)\Omega)}{\sin \Omega}A + \frac{\sin(t \Omega)}{\sin \Omega}B
+    """
+    t = np.linspace(0.0, 1.0, steps, endpoint=True).reshape((steps, 1))
+
+    omega = length(A, B, degrees=False)
+    sin_omega = np.sin(omega)
+    offsets = np.sin(t * omega) / sin_omega
+
+    return offsets[::-1] * A + offsets * B
