@@ -54,7 +54,7 @@ Examples
 from __future__ import division, print_function
 
 # STDLIB
-from copy import deepcopy
+from copy import copy, deepcopy
 
 # THIRD-PARTY
 import pyfits
@@ -193,43 +193,79 @@ class SkyLine(SphericalPolygon):
         """See SphericalPolygon."""
         return SphericalPolygon.multi_union(polygons, method=method)
 
+    @classmethod
+    def multi_intersection(cls, polygons, method='parallel'):
+        """See SphericalPolygon."""
+        return SphericalPolygon.multi_intersection(polygons, method=method)
+
     def union(self, other):
         """
-        Updates *self* with the union of *self* and *other*.
+        Return a new `SkyLine` that is the union of *self* and *other*.
         Skips *other* members that are already in *self*.
 
         Parameters
         ----------
-        self: obj
-            `SkyLine` instance to be updated.
+        self, other: obj
+            `SkyLine` instance.
 
-        other: obj
-            `SkyLine` instance to be added.
+        Returns
+        -------
+        out_skyline: obj
+            `SkyLine` instance.
 
         Examples
         --------
         >>> s1 = SkyLine('image1.fits')
         >>> s2 = SkyLine('image2.fits')
-        >>> s1.union(s2)  # s1 is updated
+        >>> s3 = s1.union(s2)
 
         See also
         --------
         sphere.polygon.SphericalPolygon.union
         
         """
+        out_skyline = copy(self)
+
+        # Not using set -- need to keep order
         new_members = [m for m in other.members if m not in self.members]
-        if len(new_members) == 0:
-            return
+        
+        if len(new_members) > 0:
+            all_poly = self.multi_union(self.polygons +
+                                        [m.polygon for m in new_members])
+            out_skyline._update(all_poly, self.members + new_members)
 
-        all_poly = self.multi_union(self.polygons +
-                                    [m.polygon for m in new_members])
+        return out_skyline
 
-        self._update(all_poly, self.members + new_members)
+    def intersection(self, other):
+        """
+        Return a new `SkyLine` that is the intersection of
+        *self* and *other*.
 
+        Parameters
+        ----------
+        self, other: obj
+            `SkyLine` instance.
+
+        Returns
+        -------
+        out_skyline: obj
+            `SkyLine` instance.
+
+        Examples
+        --------
+        >>> s1 = SkyLine('image1.fits')
+        >>> s2 = SkyLine('image2.fits')
+        >>> s3 = s1.intersection(s2)
+
+        See also
+        --------
+        sphere.polygon.SphericalPolygon.intersection
+        
+        """
+        pass
 
 # Overload parent class with following changes
 #    a. add own attr
-#    b. update self var in-place, no return
 
     def add_image(self,skyline):
         """Make composite SkyLine"""
