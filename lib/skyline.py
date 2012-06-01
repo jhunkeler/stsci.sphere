@@ -108,7 +108,7 @@ class SkyLineMember(object):
 
 class SkyLine(SphericalPolygon):
 
-    def __init__(self, fname):
+    def __init__(self, fname, extname='SCI'):
         """Initialize SkyLine object instance.
 
         Parameters
@@ -119,6 +119,10 @@ class SkyLine(SphericalPolygon):
         fname: str
             FITS image.
 
+        extname: str
+            EXTNAME to use. SCI is recommended for normal
+            HST images. PRIMARY if image is single ext.
+
         """
         # Inherit from SphericalPolygon
         SphericalPolygon.__init__(self, [], None)
@@ -127,11 +131,11 @@ class SkyLine(SphericalPolygon):
         poly_list = []
         with pyfits.open(fname) as pf:
             for i,ext in enumerate(pf):
-                if 'SCI' in ext.name.upper():
+                if extname in ext.name.upper():
                      poly_list.append(SkyLineMember(fname, i))
 
         assert len(poly_list) > 0, \
-            'SkyLine cannot find SCI ext in {}.'.format(fname)
+            'SkyLine cannot find {} ext in {}.'.format(extname, fname)
 
         # Put mosaic of all the chips in SkyLine
         self._update(self.multi_union([m.polygon for m in poly_list]),
