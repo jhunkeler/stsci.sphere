@@ -36,36 +36,35 @@ class union_test:
             step_size = int(max(float(num_permutations) / 20.0, 1.0))
             if GRAPH_MODE:
                 print("%d permutations" % num_permutations)
-            for method in ('parallel', 'serial'):
-                for i, permutation in enumerate(
-                    itertools.islice(
-                        itertools.permutations(polys),
-                        None, None, step_size)):
-                    filename = '%s_%s_union_%04d.svg' % (
-                        func.__name__, method, i)
-                    print(filename)
+            for i, permutation in enumerate(
+                itertools.islice(
+                    itertools.permutations(polys),
+                    None, None, step_size)):
+                filename = '%s_union_%04d.svg' % (
+                    func.__name__, i)
+                print(filename)
 
-                    union = polygon.SphericalPolygon.multi_union(
-                        permutation, method=method)
-                    unions.append(union)
-                    areas = [x.area() for x in permutation]
-                    union_area = union.area()
-                    assert np.all(union_area >= areas)
+                union = polygon.SphericalPolygon.multi_union(
+                    permutation)
+                unions.append(union)
+                areas = [x.area() for x in permutation]
+                union_area = union.area()
+                assert np.all(union_area >= areas)
 
-                    if GRAPH_MODE:
-                        fig = plt.figure()
-                        m = Basemap(projection=self._proj,
-                                    lon_0=self._lon_0,
-                                    lat_0=self._lat_0)
-                        m.drawmapboundary(fill_color='white')
-                        m.drawparallels(np.arange(-90., 90., 20.))
-                        m.drawmeridians(np.arange(0., 420., 20.))
+                if GRAPH_MODE:
+                    fig = plt.figure()
+                    m = Basemap(projection=self._proj,
+                                lon_0=self._lon_0,
+                                lat_0=self._lat_0)
+                    m.drawmapboundary(fill_color='white')
+                    m.drawparallels(np.arange(-90., 90., 20.))
+                    m.drawmeridians(np.arange(0., 420., 20.))
 
-                        union.draw(m, color='red', linewidth=3)
-                        for poly in permutation:
-                            poly.draw(m, color='blue', alpha=0.5)
-                        plt.savefig(filename)
-                        fig.clear()
+                    union.draw(m, color='red', linewidth=3)
+                    for poly in permutation:
+                        poly.draw(m, color='blue', alpha=0.5)
+                    plt.savefig(filename)
+                    fig.clear()
 
             lengths = np.array([len(x._points) for x in unions])
             assert np.all(lengths == [lengths[0]])
@@ -156,6 +155,28 @@ def test6():
     chipA2 = polygon.SphericalPolygon.from_wcs(wcs)
 
     null_union = chipA1.union(chipA2)
+
+
+@union_test(0, 90)
+def test7():
+    import pyfits
+    import pywcs
+
+    A = pyfits.open(os.path.join(ROOT_DIR, '2chipA.fits.gz'))
+
+    wcs = pywcs.WCS(A[1].header, fobj=A)
+    chipA1 = polygon.SphericalPolygon.from_wcs(wcs)
+    wcs = pywcs.WCS(A[4].header, fobj=A)
+    chipA2 = polygon.SphericalPolygon.from_wcs(wcs)
+
+    B = pyfits.open(os.path.join(ROOT_DIR, '2chipB.fits.gz'))
+
+    wcs = pywcs.WCS(B[1].header, fobj=B)
+    chipB1 = polygon.SphericalPolygon.from_wcs(wcs)
+    wcs = pywcs.WCS(B[4].header, fobj=B)
+    chipB2 = polygon.SphericalPolygon.from_wcs(wcs)
+
+    return [chipA1, chipA2, chipB1, chipB2]
 
 
 if __name__ == '__main__':

@@ -198,9 +198,6 @@ def rotate_around(x, y, z, u, v, w, theta, degrees=True):
     if degrees:
         theta = np.deg2rad(theta)
 
-    u2 = u**2
-    v2 = v**2
-    w2 = w**2
     costheta = np.cos(theta)
     sintheta = np.sin(theta)
     icostheta = 1.0 - costheta
@@ -211,3 +208,34 @@ def rotate_around(x, y, z, u, v, w, theta, degrees=True):
     Z = (-w*det)*icostheta + z*costheta + (-v*x + u*y)*sintheta
 
     return X, Y, Z
+
+
+def equal_area_proj(x, y, z):
+    """
+    Transform the coordinates to a 2-dimensional plane using the
+    Lambert azimuthal equal-area projection.
+
+    Parameters
+    ----------
+    x, y, z : scalars or 1-D arrays
+        The input vectors
+
+    Returns
+    -------
+    X, Y : tuple of scalars or arrays of the same length
+
+    Notes
+    -----
+
+    .. math::
+
+        X = \sqrt{\frac{2}{1-z}}x
+
+    .. math::
+
+        Y = \sqrt{\frac{2}{1-z}}y
+    """
+    scale = np.sqrt(2.0 / (1.0 - z))
+    X = scale * x
+    Y = scale * y
+    return X, Y

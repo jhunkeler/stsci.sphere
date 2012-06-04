@@ -218,6 +218,7 @@ def length(A, B, degrees=True):
     B = np.asanyarray(B)
 
     dot = inner1d(A, B)
+    dot = np.clip(dot, -1.0, 1.0)
     with np.errstate(invalid='ignore'):
         result = np.arccos(dot)
 
@@ -350,7 +351,10 @@ def interpolate(A, B, steps=50):
     t = np.linspace(0.0, 1.0, steps, endpoint=True).reshape((steps, 1))
 
     omega = length(A, B, degrees=False)
-    sin_omega = np.sin(omega)
-    offsets = np.sin(t * omega) / sin_omega
+    if omega == 0.0:
+        offsets = t
+    else:
+        sin_omega = np.sin(omega)
+        offsets = np.sin(t * omega) / sin_omega
 
     return offsets[::-1] * A + offsets * B

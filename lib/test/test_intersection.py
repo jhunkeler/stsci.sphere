@@ -70,7 +70,7 @@ class intersection_test:
             lengths = np.array([len(x._points) for x in intersections])
             assert np.all(lengths == [lengths[0]])
             areas = np.array([x.area() for x in intersections])
-            assert_array_almost_equal(areas, areas[0])
+            assert_array_almost_equal(areas, areas[0], decimal=3)
 
         return run
 

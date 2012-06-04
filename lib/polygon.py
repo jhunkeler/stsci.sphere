@@ -204,6 +204,7 @@ class SphericalPolygon(object):
         # same.  2π should equal 0, but with rounding error that isn't
         # always the case.
         C[-1] = 0
+        C = C[::-1]
         X, Y, Z = vector.rotate_around(x, y, z, u, v, w, C, degrees=False)
 
         return cls(np.dstack((X, Y, Z))[0], (u, v, w))
@@ -382,29 +383,50 @@ class SphericalPolygon(object):
         that are larger than half of the sphere.  Therefore, the
         area will always be less than 2π.
 
-        The area is computed based on the sum of the radian angles:
+        The area is computed by transforming the polygon to two
+        dimensions using the `Lambert azimuthal equal-area projection
+        <http://en.wikipedia.org/wiki/Lambert_azimuthal_equal-area_projection>`_
 
         .. math::
 
-            S = \sum^n_{i=0} \theta_i - (n - 2) \pi
+            X = \sqrt{\frac{2}{1-z}}x
+
+        .. math::
+
+            Y = \sqrt{\frac{2}{1-z}}y
+
+        The individual great arc circle segments are interpolated
+        before doing the transformation so that the curves are not
+        straightened in the process.
+
+        It then uses a standard 2D algorithm to compute the area.
+
+        .. math::
+
+            A = \left| \sum^n_{i=0} X_i Y_{i+1} - X_{i+1}Y_i \right|
         """
         if len(self._points) < 3:
             return np.array(0.0)
 
-        A = self._points[:-1]
-        B = np.roll(A, 1, 0)
-        C = np.roll(B, 1, 0)
+        # Rotate polygon so that center of polygon is at north pole
+        centroid = np.mean(self._points, axis=0)
+        points = self._points - (centroid + np.array([0, 0, 1]))
 
-        angles = great_circle_arc.angle(A, B, C, degrees=False)
+        X = []
+        Y = []
+        for A, B in zip(points[:-1], points[1:]):
+            length = great_circle_arc.length(A, B, degrees=True)
+            interp = great_circle_arc.interpolate(A, B, length * 4)
+            x, y = vector.equal_area_proj(interp[:, 0],
+                                          interp[:, 1],
+                                          interp[:, 2])
+            X.extend(x)
+            Y.extend(y)
 
-        midpoints = great_circle_arc.midpoint(A, C)
-        interior = [self.contains_point(x) for x in midpoints]
-        angles = np.where(interior, angles, 2.*np.pi - angles)
+        X = np.array(X)
+        Y = np.array(Y)
 
-        sum = np.sum(angles)
-        area = sum - float(len(angles) - 2) * np.pi
-
-        return area
+        return np.abs(np.sum(X[:-1] * Y[1:] - X[1:] * Y[:-1]) / 2.0)
 
     def union(self, other):
         """
@@ -445,7 +467,7 @@ class SphericalPolygon(object):
         return self.__class__(polygon, self._inside)
 
     @classmethod
-    def multi_union(cls, polygons, method='parallel'):
+    def multi_union(cls, polygons):
         """
         Return a new `SphericalPolygon` that is the union of all of the
         polygons in *polygons*.
@@ -453,21 +475,6 @@ class SphericalPolygon(object):
         Parameters
         ----------
         polygons : sequence of `SphericalPolygon`
-
-        method : 'parallel' or 'serial', optional
-            Specifies the method that is used to perform the unions:
-
-               - 'parallel' (default): A graph is built using all of
-                 the polygons, and the union operation is computed on
-                 the entire thing globally.
-
-               - 'serial': The polygon is built in steps by adding one
-                 polygon at a time and unioning at each step.
-
-            This option is provided because one may be faster than the
-            other depending on context, but it primarily exposed for
-            testing reasons.  Both modes should theoretically provide
-            equivalent results.
 
         Returns
         -------
@@ -483,17 +490,9 @@ class SphericalPolygon(object):
 
         import graph
 
-        if method.lower() == 'parallel':
-            g = graph.Graph(polygons)
-            polygon = g.union()
-            return cls(polygon, polygons[0]._inside)
-        elif method.lower() == 'serial':
-            result = copy(polygons[0])
-            for polygon in polygons[1:]:
-                result = result.union(polygon)
-            return result
-        else:
-            raise ValueError("method must be 'parallel' or 'serial'")
+        g = graph.Graph(polygons)
+        polygon = g.union()
+        return cls(polygon, polygons[0]._inside)
 
     @staticmethod
     def _find_new_inside(points, polygons):
@@ -670,6 +669,8 @@ class SphericalPolygon(object):
 
         for A, B in zip(points[0:-1], points[1:]):
             length = great_circle_arc.length(A, B, degrees=True)
+            if not np.isfinite(length):
+                length = 2
             interpolated = great_circle_arc.interpolate(A, B, length * 4)
             ra, dec = vector.vector_to_radec(
                 interpolated[:, 0], interpolated[:, 1], interpolated[:, 2],

@@ -166,6 +166,7 @@ class Graph:
         self._nodes = set()
         self._edges = set()
         self._source_polygons = set()
+        self._start_node = None
 
         self.add_polygons(polygons)
 
@@ -204,6 +205,8 @@ class Graph:
         self._source_polygons.add(polygon)
 
         start_node = nodeA = self.add_node(points[0], [polygon])
+        if self._start_node is None:
+            self._start_node = start_node
         for i in range(1, len(points) - 1):
             # Don't create self-pointing edges
             if not np.array_equal(points[i], nodeA._point):
@@ -330,7 +333,7 @@ class Graph:
         self.remove_edge(edge)
         return [edgeA, edgeB]
 
-    def _sanity_check(self, node_is_2=False):
+    def _sanity_check(self, title, node_is_2=False):
         """
         For debugging purposes: assert that edges and nodes are
         connected to each other correctly and there are no orphaned
@@ -370,12 +373,7 @@ class Graph:
         from mpl_toolkits.basemap import Basemap
         from matplotlib import pyplot as plt
         fig = plt.figure()
-        m = Basemap(projection="ortho",
-                    lon_0=lon_0,
-                    lat_0=lat_0)
-        m.drawparallels(np.arange(-90., 90., 20.))
-        m.drawmeridians(np.arange(0., 420., 20.))
-        m.drawmapboundary(fill_color='white')
+        m = Basemap()
 
         counts = {}
         for node in self._nodes:
@@ -383,11 +381,21 @@ class Graph:
             counts.setdefault(count, [])
             counts[count].append(list(node._point))
 
+        minx = np.inf
+        miny = np.inf
+        maxx = -np.inf
+        maxy = -np.inf
         for k, v in counts.items():
             v = np.array(v)
             ra, dec = vector.vector_to_radec(v[:, 0], v[:, 1], v[:, 2])
             x, y = m(ra, dec)
             m.plot(x, y, 'o', label=str(k))
+            for x0 in x:
+                minx = min(x0, minx)
+                maxx = max(x0, maxx)
+            for y0 in y:
+                miny = min(y0, miny)
+                maxy = max(y0, maxy)
 
         for edge in list(self._edges):
             A, B = [x._point for x in edge._nodes]
@@ -395,8 +403,11 @@ class Graph:
             r1, d1 = vector.vector_to_radec(B[0], B[1], B[2])
             m.drawgreatcircle(r0, d0, r1, d1, color='blue')
 
+        plt.xlim(minx, maxx)
+        plt.ylim(miny, maxy)
         if title:
-            plt.title(title)
+            plt.title("%s, %d v, %d e" % (
+                title, len(self._nodes), len(self._edges)))
         plt.legend()
         plt.show()
 
@@ -414,13 +425,13 @@ class Graph:
             will be included in the output.
         """
         self._remove_cut_lines()
-        self._sanity_check()
+        self._sanity_check("union - remove cut lines")
         self._find_all_intersections()
-        self._sanity_check()
-        self._remove_interior_nodes()
-        self._sanity_check()
+        self._sanity_check("union - find all intersections")
+        self._remove_interior_edges()
+        self._sanity_check("union - remove interior edges")
         self._remove_3ary_edges()
-        self._sanity_check(True)
+        self._sanity_check("union - remove 3ary edges", True)
         return self._trace()
 
     def intersection(self):
@@ -437,13 +448,13 @@ class Graph:
             will be included in the output.
         """
         self._remove_cut_lines()
-        self._sanity_check()
+        self._sanity_check("intersection - remove cut lines")
         self._find_all_intersections()
-        self._sanity_check()
+        self._sanity_check("intersection - find all intersections")
         self._remove_exterior_edges()
-        self._sanity_check()
+        self._sanity_check("intersection - remove exterior edges")
         self._remove_3ary_edges(large_first=True)
-        self._sanity_check(True)
+        self._sanity_check("intersection - remove 3ary edges", True)
         return self._trace()
 
     def _remove_cut_lines(self):
@@ -595,29 +606,24 @@ class Graph:
                     (new_ends, ends[:j], ends[j+1:]))
                 break
 
-    def _remove_interior_nodes(self):
+    def _remove_interior_edges(self):
         """
         Removes any nodes that are contained inside other polygons.
         What's left is the (possibly disjunct) outline.
         """
         polygons = self._source_polygons
 
-        # node._count is the number of polygons that the node is
-        # inside, other than the polygon that it came from
-        for node in self._nodes:
-            node._count = 0
+        for edge in self._edges:
+            edge._count = 0
             for polygon in polygons:
-                if polygon in node._source_polygons:
-                    continue
-                if polygon.contains_point(node._point):
-                    node._count += 1
+                if (not polygon in edge._source_polygons and
+                    polygon.intersects_arc(
+                        edge._nodes[0]._point, edge._nodes[1]._point)):
+                    edge._count += 1
 
-        for node in list(self._nodes):
-            # Nodes with a count >= 1 are completely contained in the
-            # outer polygon, so they should be removed.  What's left
-            # are only outer nodes.
-            if node._count >= 1:
-                self.remove_node(node)
+        for edge in list(self._edges):
+            if edge._count >= 1:
+                self.remove_edge(edge)
 
     def _remove_exterior_edges(self):
         """
@@ -673,7 +679,13 @@ class Graph:
         seen_nodes = set()
         while len(edges):
             polygon = []
-            edge = edges.pop()
+            # Carefully pick out an "original" edge first.  Synthetic
+            # edges may not be pointing in the right direction to
+            # properly calculate the area.
+            for edge in edges:
+                if len(edge._source_polygons) == 1:
+                    break
+            edges.remove(edge)
             start_node = node = edge._nodes[0]
             while True:
                 # TODO: Do we need this if clause any more?
