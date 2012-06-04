@@ -36,7 +36,7 @@
 The `polygon` module defines the `SphericalPolygon` class for managing
 polygons on the unit sphere.
 """
-from __future__ import division, print_function
+from __future__ import division, print_function, unicode_literals, absolute_import
 
 # STDLIB
 from copy import copy, deepcopy
@@ -45,14 +45,14 @@ from copy import copy, deepcopy
 import numpy as np
 
 # LOCAL
-from sphere import great_circle_arc
-from sphere import vector
+from . import great_circle_arc
+from . import vector
 
 __all__ = ['SphericalPolygon']
 
 
 class SphericalPolygon(object):
-    ur"""
+    r"""
     Polygons are represented by both a set of points (in Cartesian
     (*x*, *y*, *z*) normalized on the unit sphere), and an inside
     point.  The inside point is necessary, because both the inside and
@@ -61,7 +61,7 @@ class SphericalPolygon(object):
     """
 
     def __init__(self, points, inside):
-        ur"""
+        r"""
         Parameters
         ----------
         points : An Nx3 array of (*x*, *y*, *z*) triples in vector space
@@ -111,7 +111,7 @@ class SphericalPolygon(object):
 
     @classmethod
     def from_radec(cls, ra, dec, center=None, degrees=True):
-        ur"""
+        r"""
         Create a new `SphericalPolygon` from a list of (*ra*, *dec*)
         points.
 
@@ -151,7 +151,7 @@ class SphericalPolygon(object):
 
     @classmethod
     def from_cone(cls, ra, dec, radius, degrees=True, steps=16.0):
-        ur"""
+        r"""
         Create a new `SphericalPolygon` from a cone (otherwise known
         as a "small circle") defined using (*ra*, *dec*, *radius*).
 
@@ -211,7 +211,7 @@ class SphericalPolygon(object):
 
     @classmethod
     def from_wcs(cls, fitspath, steps=1, crval=None):
-        ur"""
+        r"""
         Create a new `SphericalPolygon` from the footprint of a FITS
         WCS specification.
 
@@ -273,7 +273,7 @@ class SphericalPolygon(object):
         return cls(np.dstack((x, y, z))[0], (xc[0], yc[0], zc[0]))
 
     def contains_point(self, point):
-        ur"""
+        r"""
         Determines if this `SphericalPolygon` contains a given point.
 
         Parameters
@@ -296,7 +296,7 @@ class SphericalPolygon(object):
         return (crossings % 2) == 0
 
     def intersects_poly(self, other):
-        ur"""
+        r"""
         Determines if this `SphericalPolygon` intersects another
         `SphericalPolygon`.
 
@@ -376,7 +376,7 @@ class SphericalPolygon(object):
         return False
 
     def area(self):
-        ur"""
+        r"""
         Returns the area of the polygon on the unit sphere.
 
         The algorithm is not able to compute the area of polygons
@@ -459,7 +459,7 @@ class SphericalPolygon(object):
         For implementation details, see the :mod:`~sphere.graph`
         module.
         """
-        import graph
+        from . import graph
         g = graph.Graph([self, other])
 
         polygon = g.union()
@@ -488,7 +488,7 @@ class SphericalPolygon(object):
         for polygon in polygons:
             assert isinstance(polygon, SphericalPolygon)
 
-        import graph
+        from . import graph
 
         g = graph.Graph(polygons)
         polygon = g.union()
@@ -560,7 +560,7 @@ class SphericalPolygon(object):
         # if not self.intersects_poly(other):
         #     return self.__class__([], [0, 0, 0])
 
-        import graph
+        from . import graph
         g = graph.Graph([self, other])
 
         polygon = g.intersection()
@@ -611,7 +611,7 @@ class SphericalPolygon(object):
         #         if not polyA.intersects_poly(polyB):
         #             return cls([], [0, 0, 0])
 
-        import graph
+        from . import graph
 
         if method.lower() == 'parallel':
             g = graph.Graph(polygons)
@@ -627,7 +627,7 @@ class SphericalPolygon(object):
             raise ValueError("method must be 'parallel' or 'serial'")
 
     def overlap(self, other):
-        ur"""
+        r"""
         Returns the fraction of *self* that is overlapped by *other*.
 
         Let *self* be *a* and *other* be *b*, then the overlap is

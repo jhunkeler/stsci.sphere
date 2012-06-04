@@ -51,7 +51,7 @@ Examples
 >>> from sphere import SkyLine
 
 """
-from __future__ import division, print_function
+from __future__ import division, print_function, absolute_import
 
 # STDLIB
 from copy import copy, deepcopy
@@ -61,14 +61,14 @@ import pyfits
 from stwcs import wcsutil
 
 # LOCAL
-from sphere.polygon import SphericalPolygon
+from .polygon import SphericalPolygon
 
 __all__ = ['SkyLine']
 __version__ = '0.1a'
 __vdate__ = '31-May-2012'
 
 class SkyLineMember(object):
-    
+
     def __init__(self, fname, ext):
         """Container for SkyLine members.
 
@@ -83,7 +83,7 @@ class SkyLineMember(object):
 
         ext: int
             Image extension.
-            
+
         """
         self._fname = fname
         self._ext = ext
@@ -126,7 +126,7 @@ class SkyLine(SphericalPolygon):
         """
         # Inherit from SphericalPolygon
         SphericalPolygon.__init__(self, [], None)
-        
+
         # Convert SCI data to SkyLineMember
         poly_list = []
         with pyfits.open(fname) as pf:
@@ -159,7 +159,7 @@ class SkyLine(SphericalPolygon):
 
         new_members: list
             List of SkyLineMember associated with `new_polygon`.
-            
+
         """
         self._points = new_polygon.points
         self._inside = new_polygon.inside
@@ -226,13 +226,13 @@ class SkyLine(SphericalPolygon):
         See also
         --------
         sphere.polygon.SphericalPolygon.union
-        
+
         """
         out_skyline = copy(self)
 
         # Not using set -- need to keep order
         new_members = [m for m in other.members if m not in self.members]
-        
+
         if len(new_members) > 0:
             all_poly = self.multi_union(self.polygons +
                                         [m.polygon for m in new_members])
@@ -264,7 +264,7 @@ class SkyLine(SphericalPolygon):
         See also
         --------
         sphere.polygon.SphericalPolygon.intersection
-        
+
         """
         pass
 

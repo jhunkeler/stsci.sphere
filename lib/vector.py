@@ -37,6 +37,8 @@ The `sphere.vector` module contains the basic operations for handling
 vectors and converting them to and from other representations.
 """
 
+from __future__ import unicode_literals
+
 # THIRD-PARTY
 import numpy as np
 
@@ -46,7 +48,7 @@ __all__ = ['radec_to_vector', 'vector_to_radec', 'normalize_vector',
 
 
 def radec_to_vector(ra, dec, degrees=True):
-    ur"""
+    r"""
     Converts a location on the unit sphere from right-ascension and
     declination to an *x*, *y*, *z* vector.
 
@@ -93,7 +95,7 @@ def radec_to_vector(ra, dec, degrees=True):
 
 
 def vector_to_radec(x, y, z, degrees=True):
-    ur"""
+    r"""
     Converts a vector to right-ascension and declination.
 
     Parameters
@@ -134,7 +136,7 @@ def vector_to_radec(x, y, z, degrees=True):
 
 
 def normalize_vector(x, y, z, inplace=False):
-    ur"""
+    r"""
     Normalizes a vector so it falls on the unit sphere.
 
     *x*, *y*, *z* may be scalars or 1-D arrays

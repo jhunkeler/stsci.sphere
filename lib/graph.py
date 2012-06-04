@@ -36,6 +36,7 @@
 This contains the code that does the actual unioning of regions.
 """
 # TODO: Weak references for memory management problems?
+from __future__ import absolute_import, division, unicode_literals, print_function
 
 # STDLIB
 import itertools
@@ -45,8 +46,8 @@ import weakref
 import numpy as np
 
 # LOCAL
-from sphere import great_circle_arc
-from sphere import vector
+from . import great_circle_arc
+from . import vector
 
 # Set to True to enable some sanity checks
 DEBUG = False

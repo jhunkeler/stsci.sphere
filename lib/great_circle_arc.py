@@ -41,14 +41,14 @@ coincident with the center of the sphere.  Great circle arcs are the
 section of those circles between two points on the unit sphere.
 """
 
-from __future__ import with_statement, division, absolute_import
+from __future__ import with_statement, division, absolute_import, unicode_literals
 
 # THIRD-PARTY
 import numpy as np
 
 
 try:
-    from sphere import math_util
+    from . import math_util
     HAS_C_UFUNCS = True
 except ImportError:
     HAS_C_UFUNCS = False
@@ -89,7 +89,7 @@ if not HAS_C_UFUNCS:
         return TN
 
     def intersection(A, B, C, D):
-        ur"""
+        r"""
         Returns the point of intersection between two great circle arcs.
         The arcs are defined between the points *AB* and *CD*.  Either *A*
         and *B* or *C* and *D* may be arrays of points, but not both.
@@ -188,7 +188,7 @@ else:
 
 
 def length(A, B, degrees=True):
-    ur"""
+    r"""
     Returns the angular distance between two points (in vector space)
     on the unit sphere.
 
@@ -320,7 +320,7 @@ def midpoint(A, B):
 
 
 def interpolate(A, B, steps=50):
-    ur"""
+    r"""
     Interpolate along the great circle arc.
 
     Parameters

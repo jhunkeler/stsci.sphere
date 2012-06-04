@@ -1,4 +1,4 @@
-from __future__ import print_function
+from __future__ import print_function, absolute_import
 
 # STDLIB
 import functools
@@ -13,8 +13,8 @@ import numpy as np
 from numpy.testing import assert_array_almost_equal
 
 # LOCAL
-from sphere import polygon
-from test_shared import resolve_imagename
+from .. import polygon
+from .test_shared import resolve_imagename
 
 GRAPH_MODE = False
 ROOT_DIR = os.path.join(os.path.dirname(__file__), 'data')

@@ -1,16 +1,18 @@
+from __future__ import absolute_import
+
 import os
 import random
 
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_array_less
 
-from sphere import graph
-from sphere import great_circle_arc
-from sphere import polygon
-from sphere import vector
+from .. import graph
+from .. import great_circle_arc
+from .. import polygon
+from .. import vector
 
 from .test_util import *
-from test_shared import resolve_imagename
+from .test_shared import resolve_imagename
 
 graph.DEBUG = True
 

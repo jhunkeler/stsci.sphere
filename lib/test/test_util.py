@@ -1,7 +1,7 @@
 import os
 
 import numpy as np
-from sphere import vector
+from .. import vector
 
 ROOT_DIR = os.path.join(os.path.dirname(__file__), 'data')
 
