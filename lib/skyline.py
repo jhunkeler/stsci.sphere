@@ -65,7 +65,7 @@ from .polygon import SphericalPolygon
 
 __all__ = ['SkyLine']
 __version__ = '0.1a'
-__vdate__ = '31-May-2012'
+__vdate__ = '05-Jun-2012'
 
 class SkyLineMember(object):
 
@@ -125,7 +125,7 @@ class SkyLine(SphericalPolygon):
 
         """
         # Inherit from SphericalPolygon
-        SphericalPolygon.__init__(self, [], None)
+        SphericalPolygon.__init__(self, [])
 
         # Convert SCI data to SkyLineMember
         poly_list = []
@@ -138,8 +138,8 @@ class SkyLine(SphericalPolygon):
             'SkyLine cannot find {} ext in {}.'.format(extname, fname)
 
         # Put mosaic of all the chips in SkyLine
-        self._update(self.multi_union([m.polygon for m in poly_list]),
-                     poly_list)
+        self._update(SphericalPolygon.multi_union(
+            [m.polygon for m in poly_list]), poly_list)
 
     def __repr__(self):
         return 'SkyLine(%r, %r, %r)' % (self.points, self.inside, self.members)
@@ -165,6 +165,26 @@ class SkyLine(SphericalPolygon):
         self._inside = new_polygon.inside
         self._members = new_members
 
+    def _find_new_members(self, other):
+        """
+        Find SkyLineMember that is in *other* but not in *self*.
+
+        This is used internally to make sure there are no duplicate
+        SkyLineMember entries. Order is preserved, with *self*
+        listed first, followed by each new member from *other*.
+
+        Parameters
+        ----------
+        self, other: obj
+            `SkyLine` instance.
+
+        Returns
+        -------
+        List of SkyLineMember that qualifies.
+        
+        """
+        return [m for m in other.members if m not in self.members]
+
     @property
     def members(self):
         """List of SkyLineMember objects."""
@@ -173,7 +193,15 @@ class SkyLine(SphericalPolygon):
     @property
     def polygons(self):
         """List of SkyLineMember polygons."""
-        return [m.polygon for m in self.members]
+        if self.members is None:
+            return []
+        else:
+            return [m.polygon for m in self.members]
+
+    @property
+    def polygon(self):
+        """SphericalPolygon portion of SkyLine."""
+        return SphericalPolygon(self.points, self.inside)
 
     @classmethod
     def from_radec(cls, ra, dec, center=None, degrees=True):
@@ -193,9 +221,9 @@ class SkyLine(SphericalPolygon):
         return SphericalPolygon.from_wcs(fitspath, steps=steps, crval=crval)
 
     @classmethod
-    def multi_union(cls, polygons, method='parallel'):
+    def multi_union(cls, polygons):
         """See SphericalPolygon."""
-        return SphericalPolygon.multi_union(polygons, method=method)
+        return SphericalPolygon.multi_union(polygons)
 
     @classmethod
     def multi_intersection(cls, polygons, method='parallel'):
@@ -229,14 +257,11 @@ class SkyLine(SphericalPolygon):
 
         """
         out_skyline = copy(self)
-
-        # Not using set -- need to keep order
-        new_members = [m for m in other.members if m not in self.members]
+        new_members = self._find_new_members(other)
 
         if len(new_members) > 0:
-            all_poly = self.multi_union(self.polygons +
-                                        [m.polygon for m in new_members])
-            out_skyline._update(all_poly, self.members + new_members)
+            out_skyline._update(self.polygon.union(other.polygon),
+                                self.members + new_members)
 
         return out_skyline
 
@@ -266,29 +291,19 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.intersection
 
         """
-        pass
+        out_skyline = copy(self)
+        new_members = self._find_new_members(other)
+        out_sph = self.polygon.intersection(other.polygon)
 
-# Overload parent class with following changes
-#    a. add own attr
+        if len(out_sph.points) == 0:
+            new_members = None
+        else:
+            new_members = [m for m in (self.members + new_members) if
+                           out_sph.contains_point(m.polygon.inside)]
 
-    def add_image(self,skyline):
-        """Make composite SkyLine"""
-        pass
+        out_skyline._update(out_sph, new_members)
 
-    def compute_overlap(self, skyline):
-        """Return sphere object with intersect of 2 skylines.
-
-        Wrapper of sphere overlap method.
-
-        """
-        pass
-
-    def find_intersection(self, skyline):
-        """
-        Return WCS object of overlap of 2 skylines.
-
-        """
-        pass
+        return out_skyline
 
     def create_wcs(self):
         """Create WCS from SkyLine object.
@@ -301,10 +316,7 @@ class SkyLine(SphericalPolygon):
             New HSTWCS objects.
 
         """
-        pass
-
-    def footprints(self):
-        """Compute edges of skyline."""
+        # Check out http://stsdas.stsci.edu/astrolib/pywcs/examples.html
         pass
 
 
