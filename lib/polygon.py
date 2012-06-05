@@ -631,6 +631,10 @@ class SphericalPolygon(object):
             result = copy(polygons[0])
             for polygon in polygons[1:]:
                 result = result.intersection(polygon)
+                # If we have a null intersection already, we don't
+                # need to go any further.
+                if len(result._points) < 3:
+                    return result
             return result
         else:
             raise ValueError("method must be 'parallel' or 'serial'")
