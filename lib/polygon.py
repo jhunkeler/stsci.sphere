@@ -60,7 +60,7 @@ class SphericalPolygon(object):
     therefore we need a way of specifying which is which.
     """
 
-    def __init__(self, points, inside):
+    def __init__(self, points, inside=None):
         r"""
         Parameters
         ----------
@@ -73,8 +73,9 @@ class SphericalPolygon(object):
             Four points are needed to define a triangle, since the
             polygon must be closed.
 
-        inside : An (*x*, *y*, *z*) triple
-            This point must be inside the polygon.
+        inside : An (*x*, *y*, *z*) triple, optional
+            This point must be inside the polygon.  If not provided, the
+            mean of the points will be used.
         """
         if len(points) == 0:
             pass
@@ -83,7 +84,10 @@ class SphericalPolygon(object):
         else:
             assert np.array_equal(points[0], points[-1]), 'Polygon is not closed'
         self._points = np.asanyarray(points)
-        self._inside = np.asanyarray(inside)
+        if inside is None:
+            self._inside = np.mean(points[:-1], axis=0)
+        else:
+            self._inside = np.asanyarray(inside)
 
         # TODO: Detect self-intersection and fix
 
@@ -408,25 +412,30 @@ class SphericalPolygon(object):
         if len(self._points) < 3:
             return np.array(0.0)
 
+        points = self._points.copy()
+
         # Rotate polygon so that center of polygon is at north pole
-        centroid = np.mean(self._points, axis=0)
+        centroid = np.mean(points, axis=0)
+        centroid = vector.normalize_vector(*centroid)
         points = self._points - (centroid + np.array([0, 0, 1]))
+        vector.normalize_vector(
+            points[:, 0], points[:, 1], points[:, 2], inplace=True)
 
         X = []
         Y = []
         for A, B in zip(points[:-1], points[1:]):
             length = great_circle_arc.length(A, B, degrees=True)
             interp = great_circle_arc.interpolate(A, B, length * 4)
-            x, y = vector.equal_area_proj(interp[:, 0],
-                                          interp[:, 1],
-                                          interp[:, 2])
+            x, y, z = vector.normalize_vector(
+                interp[:, 0], interp[:, 1], interp[:, 2], inplace=True)
+            x, y = vector.equal_area_proj(x, y, z)
             X.extend(x)
             Y.extend(y)
 
         X = np.array(X)
         Y = np.array(Y)
 
-        return np.abs(np.sum(X[:-1] * Y[1:] - X[1:] * Y[:-1]) / 2.0)
+        return np.abs(np.sum(X[:-1] * Y[1:] - X[1:] * Y[:-1]) * 0.5 * np.pi)
 
     def union(self, other):
         """

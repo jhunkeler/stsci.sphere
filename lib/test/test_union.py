@@ -29,6 +29,10 @@ class union_test:
     def __call__(self, func):
         @functools.wraps(func)
         def run(*args, **kwargs):
+            if GRAPH_MODE:
+                from mpl_toolkits.basemap import Basemap
+                from matplotlib import pyplot as plt
+
             polys = func(*args, **kwargs)
 
             unions = []
@@ -36,8 +40,11 @@ class union_test:
             step_size = int(max(float(num_permutations) / 20.0, 1.0))
             if GRAPH_MODE:
                 print("%d permutations" % num_permutations)
+
+            areas = [x.area() for x in polys]
+
             for i, permutation in enumerate(
-                itertools.islice(
+                    itertools.islice(
                     itertools.permutations(polys),
                     None, None, step_size)):
                 filename = '%s_union_%04d.svg' % (
@@ -47,9 +54,7 @@ class union_test:
                 union = polygon.SphericalPolygon.multi_union(
                     permutation)
                 unions.append(union)
-                areas = [x.area() for x in permutation]
                 union_area = union.area()
-                assert np.all(union_area >= areas)
 
                 if GRAPH_MODE:
                     fig = plt.figure()
@@ -66,10 +71,12 @@ class union_test:
                     plt.savefig(filename)
                     fig.clear()
 
+                assert np.all(union_area >= areas)
+
             lengths = np.array([len(x._points) for x in unions])
             assert np.all(lengths == [lengths[0]])
             areas = np.array([x.area() for x in unions])
-            # assert_array_almost_equal(areas, areas[0], 1)
+            assert_array_almost_equal(areas, areas[0], 1)
 
         return run
 

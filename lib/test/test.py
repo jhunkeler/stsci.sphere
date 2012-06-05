@@ -260,3 +260,18 @@ def test_cone():
         ra = random.randrange(-180, 180)
         dec = random.randrange(20, 90)
         cone = polygon.SphericalPolygon.from_cone(ra, dec, 8, steps=64)
+
+
+def test_area():
+    triangles = [
+        ([[90, 0], [0, -45], [0, 45], [90, 0]], np.pi * 0.5),
+        ([[90, 0], [0, -22.5], [0, 22.5], [90, 0]], np.pi * 0.25),
+        ([[90, 0], [0, -11.25], [0, 11.25], [90, 0]], np.pi * 0.125)
+        ]
+
+    for tri, area in triangles:
+        tri = np.array(tri)
+        x, y, z = vector.radec_to_vector(tri[:,1], tri[:,0])
+        points = np.dstack((x, y, z))[0]
+        poly = polygon.SphericalPolygon(points)
+        calc_area = poly.area()
