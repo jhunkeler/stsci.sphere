@@ -54,6 +54,7 @@ Examples
 from __future__ import division, print_function, absolute_import
 
 # STDLIB
+import os
 from copy import copy, deepcopy
 
 # THIRD-PARTY
@@ -117,29 +118,32 @@ class SkyLine(SphericalPolygon):
             SkyLine instance.
 
         fname: str
-            FITS image.
+            FITS image. None to create empty SkyLine.
 
         extname: str
             EXTNAME to use. SCI is recommended for normal
             HST images. PRIMARY if image is single ext.
 
         """
-        # Inherit from SphericalPolygon
         SphericalPolygon.__init__(self, [])
 
         # Convert SCI data to SkyLineMember
-        poly_list = []
-        with pyfits.open(fname) as pf:
-            for i,ext in enumerate(pf):
-                if extname in ext.name.upper():
-                     poly_list.append(SkyLineMember(fname, i))
-
-        assert len(poly_list) > 0, \
-            'SkyLine cannot find {} ext in {}.'.format(extname, fname)
+        if fname is not None:
+            with pyfits.open(fname) as pf:
+                poly_list = [SkyLineMember(fname, i)
+                             for i,ext in enumerate(pf)
+                             if extname in ext.name.upper()]
+        else:
+            poly_list = []
 
         # Put mosaic of all the chips in SkyLine
-        self._update(SphericalPolygon.multi_union(
-            [m.polygon for m in poly_list]), poly_list)
+        if len(poly_list) > 0:
+            self._update(SphericalPolygon.multi_union(
+                [m.polygon for m in poly_list]), poly_list)
+
+        # Empty class
+        else:
+            self._update(self, None)
 
     def __repr__(self):
         return 'SkyLine(%r, %r, %r)' % (self.points, self.inside, self.members)
@@ -163,7 +167,7 @@ class SkyLine(SphericalPolygon):
         """
         self._points = new_polygon.points
         self._inside = new_polygon.inside
-        self._members = new_members
+        self._members = new_members  
 
     def _find_new_members(self, other):
         """
@@ -183,7 +187,25 @@ class SkyLine(SphericalPolygon):
         List of SkyLineMember that qualifies.
         
         """
-        return [m for m in other.members if m not in self.members]
+        if others.members is None:
+            out_members = []
+        elif self.members is None:
+            out_members = others.members
+        else:
+            out_members = [m for m in other.members if m not in self.members]
+
+        return out_members
+
+    def _add_members(self, new_members):
+        """Return current SkyLineMember list + new SkyLineMember list."""
+        if new_members is None:
+            out_members = self.members
+        elif self.members is None:
+            out_members = new_members
+        else:
+            out_members = self.members + new_members
+            
+        return out_members
 
     @property
     def members(self):
@@ -193,10 +215,10 @@ class SkyLine(SphericalPolygon):
     @property
     def polygons(self):
         """List of SkyLineMember polygons."""
-        if self.members is None:
-            return []
-        else:
+        if self.members is not None:
             return [m.polygon for m in self.members]
+        else:
+            return []
 
     @property
     def polygon(self):
@@ -204,31 +226,81 @@ class SkyLine(SphericalPolygon):
         return SphericalPolygon(self.points, self.inside)
 
     @classmethod
-    def from_radec(cls, ra, dec, center=None, degrees=True):
-        """See SphericalPolygon."""
-        return SphericalPolygon.from_radec(ra, dec, center=center,
-                                           degrees=degrees)
+    def _overload_parentcls(cls, func, *args, **kwargs):
+        """Call SphericalPolygon class method but return SkyLine."""
+        newcls = cls(None)
+        newcls._update(func(*args, **kwargs), None)
+        return newcls
 
     @classmethod
-    def from_cone(cls, ra, dec, radius, degrees=True, steps=16.0):
-        """See SphericalPolygon."""
-        return SphericalPolygon.from_cone(ra, dec, radius, degrees=degrees,
-                                          steps=steps)
+    def from_radec(cls, *args, **kwargs):
+        """
+        Create a new `SkyLine` from a list of (*ra*, *dec*)
+        points.
+
+        See also
+        --------
+        sphere.polygon.SphericalPolygon.from_radec
+        
+        """
+        return cls._overload_parentcls(SphericalPolygon.from_radec,
+                                       *args, **kwargs)
 
     @classmethod
-    def from_wcs(cls, fitspath, steps=1, crval=None):
-        """See SphericalPolygon."""
-        return SphericalPolygon.from_wcs(fitspath, steps=steps, crval=crval)
+    def from_cone(cls, *args, **kwargs):
+        """
+        Create a new `SkyLine` from a cone (otherwise known
+        as a 'small circle') defined using (*ra*, *dec*, *radius*).
+
+        See also
+        --------
+        sphere.polygon.SphericalPolygon.from_cone
+
+        """
+        return cls._overload_parentcls(SphericalPolygon.from_cone,
+                                       *args, **kwargs)
 
     @classmethod
-    def multi_union(cls, polygons):
-        """See SphericalPolygon."""
-        return SphericalPolygon.multi_union(polygons)
+    def from_wcs(cls, *args, **kwargs):
+        """
+        Create a new `SkyLine` from the footprint of a FITS
+        WCS specification.
+
+        See also
+        --------
+        sphere.polygon.SphericalPolygon.from_wcs
+
+        """
+        return cls._overload_parentcls(SphericalPolygon.from_wcs,
+                                       *args, **kwargs)
 
     @classmethod
-    def multi_intersection(cls, polygons, method='parallel'):
-        """See SphericalPolygon."""
-        return SphericalPolygon.multi_intersection(polygons, method=method)
+    def multi_union(cls, *args, **kwargs):
+        """
+        Return a new `SkyLine` that is the union of all of the
+        polygons in *polygons*.
+
+        See also
+        --------
+        sphere.polygon.SphericalPolygon.multi_union
+
+        """
+        return cls._overload_parentcls(SphericalPolygon.multi_union,
+                                       *args, **kwargs)
+
+    @classmethod
+    def multi_intersection(cls, *args, **kwargs):
+        """
+        Return a new `SkyLine` that is the intersection of
+        all of the polygons in *polygons*.
+
+        See also
+        --------
+        sphere.polygon.SphericalPolygon.multi_intersection
+
+        """
+        return cls._overload_parentcls(SphericalPolygon.multi_intersection,
+                                       *args, **kwargs)
 
     def union(self, other):
         """
@@ -261,7 +333,7 @@ class SkyLine(SphericalPolygon):
 
         if len(new_members) > 0:
             out_skyline._update(self.polygon.union(other.polygon),
-                                self.members + new_members)
+                                self._add_members(new_members))
 
         return out_skyline
 
@@ -298,26 +370,12 @@ class SkyLine(SphericalPolygon):
         if len(out_sph.points) == 0:
             new_members = None
         else:
-            new_members = [m for m in (self.members + new_members) if
+            new_members = [m for m in self._add_members(new_members) if
                            out_sph.contains_point(m.polygon.inside)]
 
         out_skyline._update(out_sph, new_members)
 
         return out_skyline
-
-    def create_wcs(self):
-        """Create WCS from SkyLine object.
-
-        .. note:: Use stwcs to define a plane using multiple HSTWCS object
-
-        Returns
-        -------
-        wcs: obj
-            New HSTWCS objects.
-
-        """
-        # Check out http://stsdas.stsci.edu/astrolib/pywcs/examples.html
-        pass
 
 
 def test():

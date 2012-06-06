@@ -113,6 +113,18 @@ class SphericalPolygon(object):
         """
         return self._inside
 
+    @property
+    def radec(self):
+        """Convert `SphericalPolygon` footprint to RA and DEC.
+
+        Returns
+        -------
+        ra, dec: array_like
+            RA and DEC of `self.points`.
+        """
+        return vector.vector_to_radec(self.points[:,0], self.points[:,1],
+                                      self.points[:,2], degrees=True)
+
     @classmethod
     def from_radec(cls, ra, dec, center=None, degrees=True):
         r"""
