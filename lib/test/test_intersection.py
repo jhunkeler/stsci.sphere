@@ -71,7 +71,7 @@ class intersection_test:
                         plt.savefig(filename)
                         fig.clear()
 
-                    assert np.all(intersection_area <= areas)
+                    assert np.all(intersection_area * 0.9 <= areas)
 
             lengths = np.array([len(x._points) for x in intersections])
             assert np.all(lengths == [lengths[0]])

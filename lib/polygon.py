@@ -427,7 +427,7 @@ class SphericalPolygon(object):
         points = self._points.copy()
 
         # Rotate polygon so that center of polygon is at north pole
-        centroid = np.mean(points, axis=0)
+        centroid = np.mean(points[:-1], axis=0)
         centroid = vector.normalize_vector(*centroid)
         points = self._points - (centroid + np.array([0, 0, 1]))
         vector.normalize_vector(
