@@ -39,16 +39,13 @@ solely, not image data itself.
 
 .. note:: Requires Python 2.7 or later.
 
-:Authors: Pey Lian Lim, W. Hack
+:Authors: Pey Lian Lim, W. Hack, M. Droettboom
 
 :Organization: Space Telescope Science Institute
 
 :History:
-    * 2012-05-25 PLL updated doc. Original class structure by WJH.
-
-Examples
---------
->>> from sphere import SkyLine
+    * 2012-05-25 PLL started coding. Original class
+      structure by WJH. Parent class by MD.
 
 """
 from __future__ import division, print_function, absolute_import
@@ -66,7 +63,7 @@ from .polygon import SphericalPolygon
 
 __all__ = ['SkyLine']
 __version__ = '0.1a'
-__vdate__ = '05-Jun-2012'
+__vdate__ = '06-Jun-2012'
 
 class SkyLineMember(object):
 
@@ -130,20 +127,21 @@ class SkyLine(SphericalPolygon):
         # Convert SCI data to SkyLineMember
         if fname is not None:
             with pyfits.open(fname) as pf:
-                poly_list = [SkyLineMember(fname, i)
-                             for i,ext in enumerate(pf)
-                             if extname in ext.name.upper()]
+                new_members = [SkyLineMember(fname, i)
+                               for i,ext in enumerate(pf)
+                               if extname in ext.name.upper()]
         else:
-            poly_list = []
+            new_members = []
 
         # Put mosaic of all the chips in SkyLine
-        if len(poly_list) > 0:
-            self._update(SphericalPolygon.multi_union(
-                [m.polygon for m in poly_list]), poly_list)
-
+        if len(new_members) > 0:
+            new_polygon = SphericalPolygon.multi_union(
+                [m.polygon for m in new_members])
         # Empty class
         else:
-            self._update(self, None)
+            new_polygon = self
+
+        self._update(new_polygon, new_members)
 
     def __repr__(self):
         return 'SkyLine(%r, %r, %r)' % (self.points, self.inside, self.members)
@@ -167,7 +165,7 @@ class SkyLine(SphericalPolygon):
         """
         self._points = new_polygon.points
         self._inside = new_polygon.inside
-        self._members = new_members  
+        self._members = new_members
 
     def _find_new_members(self, other):
         """
@@ -185,27 +183,9 @@ class SkyLine(SphericalPolygon):
         Returns
         -------
         List of SkyLineMember that qualifies.
-        
+
         """
-        if others.members is None:
-            out_members = []
-        elif self.members is None:
-            out_members = others.members
-        else:
-            out_members = [m for m in other.members if m not in self.members]
-
-        return out_members
-
-    def _add_members(self, new_members):
-        """Return current SkyLineMember list + new SkyLineMember list."""
-        if new_members is None:
-            out_members = self.members
-        elif self.members is None:
-            out_members = new_members
-        else:
-            out_members = self.members + new_members
-            
-        return out_members
+        return [m for m in other.members if m not in self.members]
 
     @property
     def members(self):
@@ -215,10 +195,7 @@ class SkyLine(SphericalPolygon):
     @property
     def polygons(self):
         """List of SkyLineMember polygons."""
-        if self.members is not None:
-            return [m.polygon for m in self.members]
-        else:
-            return []
+        return [m.polygon for m in self.members]
 
     @property
     def polygon(self):
@@ -241,7 +218,7 @@ class SkyLine(SphericalPolygon):
         See also
         --------
         sphere.polygon.SphericalPolygon.from_radec
-        
+
         """
         return cls._overload_parentcls(SphericalPolygon.from_radec,
                                        *args, **kwargs)
@@ -333,7 +310,7 @@ class SkyLine(SphericalPolygon):
 
         if len(new_members) > 0:
             out_skyline._update(self.polygon.union(other.polygon),
-                                self._add_members(new_members))
+                                self.members + new_members)
 
         return out_skyline
 
@@ -363,21 +340,13 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.intersection
 
         """
-        out_skyline = copy(self)
+        out_skyline = self.__class__(None)
         new_members = self._find_new_members(other)
         out_sph = self.polygon.intersection(other.polygon)
 
-        if len(out_sph.points) == 0:
-            new_members = None
-        else:
-            new_members = [m for m in self._add_members(new_members) if
+        if len(out_sph.points) > 0:
+            new_members = [m for m in (self.members + new_members) if
                            out_sph.contains_point(m.polygon.inside)]
-
-        out_skyline._update(out_sph, new_members)
+            out_skyline._update(out_sph, new_members)
 
         return out_skyline
-
-
-def test():
-    """Basic use case."""
-    pass
