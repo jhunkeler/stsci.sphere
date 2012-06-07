@@ -55,6 +55,8 @@ class union_test:
                     permutation)
                 unions.append(union)
                 union_area = union.area()
+                print(union._points)
+                print(permutation[0]._points)
 
                 if GRAPH_MODE:
                     fig = plt.figure()
@@ -71,7 +73,8 @@ class union_test:
                     plt.savefig(filename)
                     fig.clear()
 
-                assert np.all(union_area >= areas)
+                print(union_area, areas)
+                assert np.all(union_area * 1.1 >= areas)
 
             lengths = np.array([len(x._points) for x in unions])
             assert np.all(lengths == [lengths[0]])
@@ -184,6 +187,20 @@ def test7():
     chipB2 = polygon.SphericalPolygon.from_wcs(wcs)
 
     return [chipA1, chipA2, chipB1, chipB2]
+
+
+@union_test(0, 90)
+def test8():
+    import pyfits
+    fits = pyfits.open(resolve_imagename(ROOT_DIR, '1904-66_TAN.fits'))
+    header = fits[0].header
+
+    poly1 = polygon.SphericalPolygon.from_wcs(
+        header, 1)
+    poly2 = polygon.SphericalPolygon.from_wcs(
+        header, 1)
+
+    return [poly1, poly2]
 
 
 if __name__ == '__main__':

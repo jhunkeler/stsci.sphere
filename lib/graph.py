@@ -156,6 +156,26 @@ class Graph:
             except IndexError:
                 raise ValueError("Following from disconnected node")
 
+        def equals(self, other):
+            """
+            Returns True if the other edge is between the same two nodes.
+
+            Parameters
+            ----------
+            other : `Edge` instance
+
+            Returns
+            -------
+            equals : bool
+            """
+            if (self._nodes[0].equals(other._nodes[0]) and
+                self._nodes[1].equals(other._nodes[1])):
+                return True
+            if (self._nodes[1].equals(other._nodes[0]) and
+                self._nodes[0].equals(other._nodes[1])):
+                return True
+            return False
+
 
     def __init__(self, polygons):
         """
@@ -234,9 +254,17 @@ class Graph:
         node : `Node` instance
             The new node
         """
-        node = self.Node(point, source_polygons)
-        self._nodes.add(node)
-        return node
+        new_node = self.Node(point, source_polygons)
+
+        # Don't add nodes that already exist.  Update the existing
+        # node's source_polygons list to include the new polygon.
+        for node in self._nodes:
+            if node.equals(new_node):
+                node._source_polygons.update(source_polygons)
+                return node
+
+        self._nodes.add(new_node)
+        return new_node
 
     def remove_node(self, node):
         """
@@ -279,9 +307,17 @@ class Graph:
         assert A in self._nodes
         assert B in self._nodes
 
-        edge = self.Edge(A, B, source_polygons)
-        self._edges.add(edge)
-        return edge
+        new_edge = self.Edge(A, B, source_polygons)
+
+        # Don't add any edges that already exist.  Update the edge's
+        # source polygons list to include the new polygon.
+        for edge in self._edges:
+            if edge.equals(new_edge):
+                edge._source_polygons.update(source_polygons)
+                return edge
+
+        self._edges.add(new_edge)
+        return new_edge
 
     def remove_edge(self, edge):
         """

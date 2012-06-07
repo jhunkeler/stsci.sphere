@@ -71,7 +71,7 @@ class intersection_test:
                         plt.savefig(filename)
                         fig.clear()
 
-                    assert np.all(intersection_area < areas)
+                    assert np.all(intersection_area <= areas)
 
             lengths = np.array([len(x._points) for x in intersections])
             assert np.all(lengths == [lengths[0]])
@@ -162,6 +162,19 @@ def test5():
 
     Apoly.overlap(chipB1)
 
+
+@intersection_test(0, 90)
+def test6():
+    import pyfits
+    fits = pyfits.open(resolve_imagename(ROOT_DIR, '1904-66_TAN.fits'))
+    header = fits[0].header
+
+    poly1 = polygon.SphericalPolygon.from_wcs(
+        header, 1)
+    poly2 = polygon.SphericalPolygon.from_wcs(
+        header, 1)
+
+    return [poly1, poly2]
 
 
 if __name__ == '__main__':
