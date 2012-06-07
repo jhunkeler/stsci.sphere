@@ -51,7 +51,6 @@ solely, not image data itself.
 from __future__ import division, print_function, absolute_import
 
 # STDLIB
-import os
 from copy import copy, deepcopy
 
 # THIRD-PARTY
