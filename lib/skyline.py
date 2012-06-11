@@ -172,8 +172,8 @@ class SkyLine(SphericalPolygon):
 
         # Put mosaic of all the chips in SkyLine
         if len(self.members) > 0:
-            self.polygon = SphericalPolygon.multi_union(
-                [m.polygon for m in self.members])
+            self._set_polygon(
+                SphericalPolygon.multi_union([m.polygon for m in self.members]))
 
     def __repr__(self):
         return 'SkyLine(%r, %r, %r)' % (self.points, self.inside, self.members)
@@ -199,7 +199,7 @@ class SkyLine(SphericalPolygon):
         """
         if len(self.points) > 0:
             out_mem = [m for m in given_members if
-                       self.contains_point(m.polygon.inside)]
+                       self.intersects_poly(m.polygon)]
         else:
             out_mem = []
         return out_mem
@@ -222,47 +222,30 @@ class SkyLine(SphericalPolygon):
             if v not in self._members:
                 self._members.append(v)
 
-    @property
-    def polygon(self):
-        """`SphericalPolygon` portion of `SkyLine`."""
-        return SphericalPolygon(self.points, self.inside)
-
-    @polygon.setter
-    def polygon(self, sph):
+    def _set_polygon(self, sph):
         """Set `SkyLine` to given `SphericalPolygon` properties."""
         assert isinstance(sph, SphericalPolygon)
-        self._points = sph.points
-        self._inside = sph.inside
-
-    @staticmethod
-    def _sep_poly_mem(skylines):
-        """
-        Separate polygons and members of given *skylines*
-        for further processing.
-
-        Returns
-        -------
-        all_poly: list
-            List of `SphericalPolygon`.
-
-        all_mem: list
-            List of `SkyLineMember`.
-
-        """
-        all_poly, all_mem = [], []
-        
-        for a in skylines:
-            all_poly.append(a.polygon)
-            all_mem += a.members
-
-        return all_poly, all_mem
+        self._points = sph.points.copy()
+        self._inside = sph.inside.copy()
 
     @classmethod
-    def _overload_parentcls(cls, mem, func, *args, **kwargs):
+    def _all_members(cls, skylines):
+        """
+        Return a list of combined members for *skylines*.
+        Duplicates are allowed because they will be removed
+        anyway by `members.setter`.
+        
+        """
+        newmem = []
+        for s in skylines:
+            newmem += s.members
+        return newmem
+
+    @classmethod
+    def _overload_parentcls(cls, func, *args, **kwargs):
         """Call `SphericalPolygon` class method but return `SkyLine`."""
         newcls = cls(None)
-        newcls.polygon = func(*args, **kwargs)
-        newcls.members = mem
+        newcls._set_polygon(func(*args, **kwargs))
         return newcls
 
     @classmethod
@@ -276,7 +259,7 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.from_radec
 
         """
-        return cls._overload_parentcls([], SphericalPolygon.from_radec,
+        return cls._overload_parentcls(SphericalPolygon.from_radec,
                                        *args, **kwargs)
 
     @classmethod
@@ -290,7 +273,7 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.from_cone
 
         """
-        return cls._overload_parentcls([], SphericalPolygon.from_cone,
+        return cls._overload_parentcls(SphericalPolygon.from_cone,
                                        *args, **kwargs)
 
     @classmethod
@@ -304,7 +287,7 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.from_wcs
 
         """
-        return cls._overload_parentcls([], SphericalPolygon.from_wcs,
+        return cls._overload_parentcls(SphericalPolygon.from_wcs,
                                        *args, **kwargs)
 
     @classmethod
@@ -318,9 +301,10 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.multi_union
 
         """
-        all_poly, all_mem = cls._sep_poly_mem(skylines)
-        return cls._overload_parentcls(all_mem, SphericalPolygon.multi_union,
-                                       all_poly, **kwargs)
+        newcls = cls._overload_parentcls(SphericalPolygon.multi_union,
+                                         skylines, **kwargs)
+        newcls.members = cls._all_members(skylines)
+        return newcls
 
     @classmethod
     def multi_intersection(cls, skylines, **kwargs):
@@ -333,11 +317,9 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.multi_intersection
 
         """
-        all_poly, all_mem = cls._sep_poly_mem(skylines)
-        newcls = cls._overload_parentcls([],
-                                         SphericalPolygon.multi_intersection,
-                                         all_poly, **kwargs)
-        newcls.members = newcls._find_members(all_mem)
+        newcls = cls._overload_parentcls(SphericalPolygon.multi_intersection,
+                                         skylines, **kwargs)
+        newcls.members = newcls._find_members(cls._all_members(skylines))
         return newcls
 
     def union(self, other):
@@ -366,10 +348,7 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.union
 
         """
-        out_skyline = self.__class__(None)
-        out_skyline.polygon = self.polygon.union(other.polygon)
-        out_skyline.members = self.members + other.members
-        return out_skyline
+        return self.__class__.multi_union([self, other])
 
     def intersection(self, other):
         """
@@ -397,8 +376,4 @@ class SkyLine(SphericalPolygon):
         sphere.polygon.SphericalPolygon.intersection
 
         """
-        out_skyline = self.__class__(None)
-        out_skyline.polygon = self.polygon.intersection(other.polygon)
-        out_skyline.members = out_skyline._find_members(
-            self.members + other.members)
-        return out_skyline
+        return self.__class__.multi_intersection([self, other])
