@@ -96,8 +96,8 @@ from stwcs import wcsutil
 from .polygon import SphericalPolygon
 
 __all__ = ['SkyLine']
-__version__ = '0.1a'
-__vdate__ = '07-Jun-2012'
+__version__ = '0.2a'
+__vdate__ = '12-Jun-2012'
 
 class SkyLineMember(object):
 
@@ -109,6 +109,8 @@ class SkyLineMember(object):
         `SphericalPolygon` instance from WCS under
         `polygon`.
 
+        Parameters
+        ----------
         self: obj
             SkyLineMember instance.
 
@@ -140,7 +142,7 @@ class SkyLineMember(object):
     def polygon(self):
         return self._polygon
 
-class SkyLine(SphericalPolygon):
+class SkyLine(object):
 
     def __init__(self, fname, extname='SCI'):
         """
@@ -159,8 +161,6 @@ class SkyLine(SphericalPolygon):
             HST images. PRIMARY if image is single ext.
 
         """
-        SphericalPolygon.__init__(self, [])
-
         # Convert SCI data to SkyLineMember
         if fname is not None:
             with pyfits.open(fname) as pf:
@@ -172,11 +172,47 @@ class SkyLine(SphericalPolygon):
 
         # Put mosaic of all the chips in SkyLine
         if len(self.members) > 0:
-            self._set_polygon(
-                SphericalPolygon.multi_union([m.polygon for m in self.members]))
+            self.polygon = SphericalPolygon.multi_union([m.polygon for m in self.members])
+        else:
+            self.polygon = SphericalPolygon([])
 
+    def __getattr__(self, what):
+        return getattr(self.polygon, what)
+
+    def __copy__(self):
+        return deepcopy(self)
+    
     def __repr__(self):
-        return 'SkyLine(%r, %r, %r)' % (self.points, self.inside, self.members)
+        return 'SkyLine(%r, %r)' % (self.polygon, self.members)
+
+    @property
+    def polygon(self):
+        """`SphericalPolygon` portion of `SkyLine`."""
+        return self._polygon
+
+    @polygon.setter
+    def polygon(self, value):
+        """Deep copy a `SphericalPolygon`."""
+        assert isinstance(value, SphericalPolygon)
+        self._polygon = copy(value)
+
+    @property
+    def members(self):
+        """List of `SkyLineMember` objects."""
+        return self._members
+
+    @members.setter
+    def members(self, values):
+        """Make sure `SkyLineMember` entries are unique."""
+        self._members = []
+
+        # Not using set to preserve order
+        for v in values:
+            # Report corrupted members list instead of skipping
+            assert isinstance(v, SkyLineMember)
+
+            if v not in self._members:
+                self._members.append(v)
 
     def _find_members(self, given_members):
         """
@@ -204,176 +240,42 @@ class SkyLine(SphericalPolygon):
             out_mem = []
         return out_mem
 
-    @property
-    def members(self):
-        """List of `SkyLineMember` objects."""
-        return self._members
-
-    @members.setter
-    def members(self, values):
-        """Make sure `SkyLineMember` entries are unique."""
-        self._members = []
-
-        # Not using set to preserve order
-        for v in values:
-            # Report corrupted members list instead of skipping
-            assert isinstance(v, SkyLineMember)
-
-            if v not in self._members:
-                self._members.append(v)
-
-    def _set_polygon(self, sph):
-        """Set `SkyLine` to given `SphericalPolygon` properties."""
-        assert isinstance(sph, SphericalPolygon)
-        self._points = sph.points.copy()
-        self._inside = sph.inside.copy()
-
-    @classmethod
-    def _all_members(cls, skylines):
-        """
-        Return a list of combined members for *skylines*.
-        Duplicates are allowed because they will be removed
-        anyway by `members.setter`.
-        
-        """
-        newmem = []
-        for s in skylines:
-            newmem += s.members
-        return newmem
-
-    @classmethod
-    def _overload_parentcls(cls, func, *args, **kwargs):
-        """Call `SphericalPolygon` class method but return `SkyLine`."""
-        newcls = cls(None)
-        newcls._set_polygon(func(*args, **kwargs))
-        return newcls
-
-    @classmethod
-    def from_radec(cls, *args, **kwargs):
-        """
-        Create a new `SkyLine` from a list of (*ra*, *dec*)
-        points.
-
-        See also
-        --------
-        sphere.polygon.SphericalPolygon.from_radec
-
-        """
-        return cls._overload_parentcls(SphericalPolygon.from_radec,
-                                       *args, **kwargs)
-
-    @classmethod
-    def from_cone(cls, *args, **kwargs):
-        """
-        Create a new `SkyLine` from a cone (otherwise known
-        as a 'small circle') defined using (*ra*, *dec*, *radius*).
-
-        See also
-        --------
-        sphere.polygon.SphericalPolygon.from_cone
-
-        """
-        return cls._overload_parentcls(SphericalPolygon.from_cone,
-                                       *args, **kwargs)
-
-    @classmethod
-    def from_wcs(cls, *args, **kwargs):
-        """
-        Create a new `SkyLine` from the footprint of a FITS
-        WCS specification.
-
-        See also
-        --------
-        sphere.polygon.SphericalPolygon.from_wcs
-
-        """
-        return cls._overload_parentcls(SphericalPolygon.from_wcs,
-                                       *args, **kwargs)
-
-    @classmethod
-    def multi_union(cls, skylines, **kwargs):
-        """
-        Return a new `SkyLine` that is the union of all of
-        the *skylines*.
-
-        See also
-        --------
-        sphere.polygon.SphericalPolygon.multi_union
-
-        """
-        newcls = cls._overload_parentcls(SphericalPolygon.multi_union,
-                                         skylines, **kwargs)
-        newcls.members = cls._all_members(skylines)
-        return newcls
-
-    @classmethod
-    def multi_intersection(cls, skylines, **kwargs):
-        """
-        Return a new `SkyLine` that is the intersection of
-        all of the *skylines*.
-
-        See also
-        --------
-        sphere.polygon.SphericalPolygon.multi_intersection
-
-        """
-        newcls = cls._overload_parentcls(SphericalPolygon.multi_intersection,
-                                         skylines, **kwargs)
-        newcls.members = newcls._find_members(cls._all_members(skylines))
-        return newcls
-
-    def union(self, other):
+    def add_image(self, other):
         """
         Return a new `SkyLine` that is the union of *self*
         and *other*.
 
-        Parameters
-        ----------
-        self, other: obj
-            `SkyLine` instance.
-
-        Returns
-        -------
-        out_skyline: obj
-            `SkyLine` instance.
+        .. warning:: `SkyLine.union` only returns `polygon`
+            without `members`.
 
         Examples
         --------
         >>> s1 = SkyLine('image1.fits')
         >>> s2 = SkyLine('image2.fits')
-        >>> s3 = s1.union(s2)
-
-        See also
-        --------
-        sphere.polygon.SphericalPolygon.union
+        >>> s3 = s1.add_image(s2)
 
         """
-        return self.__class__.multi_union([self, other])
+        newcls = self.__class__(None)
+        newcls.polygon = self.union(other)
+        newcls.members = self.members + other.members
+        return newcls
 
-    def intersection(self, other):
+    def find_intersection(self, other):
         """
         Return a new `SkyLine` that is the intersection of
         *self* and *other*.
 
-        Parameters
-        ----------
-        self, other: obj
-            `SkyLine` instance.
-
-        Returns
-        -------
-        out_skyline: obj
-            `SkyLine` instance.
+        .. warning:: `SkyLine.intersection` only returns
+            `polygon` without `members`.
 
         Examples
         --------
         >>> s1 = SkyLine('image1.fits')
         >>> s2 = SkyLine('image2.fits')
-        >>> s3 = s1.intersection(s2)
-
-        See also
-        --------
-        sphere.polygon.SphericalPolygon.intersection
+        >>> s3 = s1.find_intersection(s2)
 
         """
-        return self.__class__.multi_intersection([self, other])
+        newcls = self.__class__(None)
+        newcls.polygon = self.intersection(other)
+        newcls.members = newcls._find_members(self.members + other.members)
+        return newcls
