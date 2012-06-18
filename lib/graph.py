@@ -106,12 +106,22 @@ class Graph:
             except IndexError:
                 raise ValueError("Following from disconnected edge")
 
-        def equals(self, other):
+        def equals(self, other, thres=2e-8):
             """
             Returns `True` if the location of this and the *other*
             `Node` are the same.
+
+            Parameters
+            ----------
+            thres: float
+                If difference is smaller than this, points are equal.
+                The default value of 2e-8 radians is set based on
+                emphirical test cases. Relative threshold based on
+                the actual sizes of polygons is not implemented.
             """
-            return np.array_equal(self._point, other._point)
+            #return np.array_equal(self._point, other._point)
+            return great_circle_arc.length(self._point, other._point,
+                                           degrees=False) < thres
 
 
     class Edge:
