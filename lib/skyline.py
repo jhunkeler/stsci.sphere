@@ -161,6 +161,8 @@ class SkyLine(object):
             HST images. PRIMARY if image is single ext.
 
         """
+        extname = extname.upper()
+        
         # Convert SCI data to SkyLineMember
         if fname is not None:
             with pyfits.open(fname) as pf:
@@ -177,7 +179,14 @@ class SkyLine(object):
             self.polygon = SphericalPolygon([])
 
     def __getattr__(self, what):
-        return getattr(self.polygon, what)
+        """Control attribute access to `SphericalPolygon`."""
+        if what in ('from_radec', 'from_cone', 'from_wcs',
+                    'multi_union', 'multi_intersection',
+                    '_find_new_inside',):
+            raise AttributeError('\'SkyLine\' object has no attribute \'%s\'' %
+                                 what)
+        else:
+            return getattr(self.polygon, what)
 
     def __copy__(self):
         return deepcopy(self)

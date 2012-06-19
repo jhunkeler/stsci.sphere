@@ -113,17 +113,17 @@ class SphericalPolygon(object):
         """
         return self._inside
 
-    @property
-    def radec(self):
+    def to_radec(self):
         """Convert `SphericalPolygon` footprint to RA and DEC.
 
         Returns
         -------
-        ra, dec: array_like
-            RA and DEC of `self.points`.
+        List of RA and DEC pairs (in degrees) corresponding to
+        `self.points`.
         """
-        return vector.vector_to_radec(self.points[:,0], self.points[:,1],
-                                      self.points[:,2], degrees=True)
+        ra, dec = vector.vector_to_radec(self.points[:,0], self.points[:,1],
+                                         self.points[:,2], degrees=True)
+        return zip(ra,dec)
 
     @classmethod
     def from_radec(cls, ra, dec, center=None, degrees=True):
@@ -288,6 +288,89 @@ class SphericalPolygon(object):
 
         return cls(np.dstack((x, y, z))[0], (xc[0], yc[0], zc[0]))
 
+    def _unique_points(self):
+        """Ignore duplicate `points`. Order not preserved."""
+        # http://stackoverflow.com/questions/7989722/finding-unique-points-in-numpy-array
+        if len(self.points) == 0:
+            val = []
+        else:
+            val = np.vstack([np.array(u) for u in
+                             set([tuple(p) for p in self.points])])
+        return val
+
+    def _sorted_points(self, unique=True):
+        """
+        Sort `points` in the order of *x*, *y*, and *z*.
+
+        Parameters
+        ----------
+        unique : bool
+            Ignore duplicates.
+        """
+        if len(self.points) == 0:
+            return []
+
+        if unique:
+            pts = self._unique_points()
+        else:
+            pts = self.points.copy()
+
+        return pts[np.lexsort((pts[:,0], pts[:,1], pts[:,2]))]
+
+    def same_points_as(self, other, do_sort=True, thres=0.01):
+        """
+        Determines if this `SphericalPolygon` points are the same
+        as the other.
+
+        Parameters
+        ----------
+        other : `SphericalPolygon`
+
+        do_sort : bool
+            Compare unique sorted points.
+
+        thres : float
+            Fraction of area to use in equality decision.
+
+        Returns
+        -------
+        `True` or `False`
+        """
+        self_n = len(self.points)
+        
+        if self_n != len(other.points):
+            return False
+
+        if self_n == 0:
+            return True
+
+        self_a = self.area()
+        is_same_limit = thres * self_a
+        
+        if np.abs(self_a - other.area()) > is_same_limit:
+            return False
+        
+        if do_sort:
+            self_pts  = self._sorted_points()
+            other_pts = other._sorted_points()
+        else:
+            self_pts  = self.points
+            other_pts = other.points
+
+        is_eq = True
+        
+        for self_p, other_p in zip(self_pts, other_pts):
+            x_sum = 0.0
+
+            for a,b in zip(self_p, other_p):
+                x_sum += (a - b) ** 2
+
+            if np.sqrt(x_sum) > is_same_limit:
+                is_eq = False
+                break
+
+        return is_eq
+
     def contains_point(self, point):
         r"""
         Determines if this `SphericalPolygon` contains a given point.
@@ -422,7 +505,7 @@ class SphericalPolygon(object):
             A = \left| \sum^n_{i=0} X_i Y_{i+1} - X_{i+1}Y_i \right|
         """
         if len(self._points) < 3:
-            return np.array(0.0)
+            return np.float64(0.0)
 
         points = self._points.copy()
 
