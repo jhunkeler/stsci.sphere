@@ -118,14 +118,26 @@ def test_find_intersection():
 
 # ----- INTENDED USE CASE -----
 
-def test_science():
-    skylines = [im_2chipA, im_2chipB, im_2chipC, im_66_tan]
+def NOT_DONE_science():
+    mos, inc, exc = SkyLine.mosaic([im_2chipA, im_2chipB, im_2chipC, im_66_tan])
 
-    # TODO: Add Warren's example use case
+    assert inc == [f_2chipA, f_2chipB]
+    assert exc == [f_2chipC, f_66_tan]
+
+    assert_almost_equal(im_2chipA.overlap(mos), 1.0)
+    assert_almost_equal(im_2chipB.overlap(mos), 1.0)
+    
+    assert_almost_equal(im_2chipC.overlap(mos), 0.0)
+    assert_almost_equal(im_66_tan.overlap(mos), 0.0)
 
 
 # ----- UNSTABLE -----
 
+def DISABLED_overlap_1():
+    i1 = im_2chipA.find_intersection(im_2chipB)
+    i2 = im_2chipB.find_intersection(im_2chipA)
+    assert_almost_equal(i1.overlap(i2), 1.0) # ok if ran alone
+    
 def DISABLED_unstable_overlap():
     i1 = im_2chipA.find_intersection(im_2chipB)
     i2 = im_2chipB.find_intersection(im_2chipA)

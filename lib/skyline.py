@@ -91,13 +91,14 @@ from copy import copy, deepcopy
 # THIRD-PARTY
 import pyfits
 from stwcs import wcsutil
+from stwcs.distortion.utils import output_wcs
 
 # LOCAL
 from .polygon import SphericalPolygon
 
 __all__ = ['SkyLine']
-__version__ = '0.2a'
-__vdate__ = '12-Jun-2012'
+__version__ = '0.3a'
+__vdate__ = '20-Jun-2012'
 
 class SkyLineMember(object):
 
@@ -111,9 +112,6 @@ class SkyLineMember(object):
 
         Parameters
         ----------
-        self: obj
-            SkyLineMember instance.
-
         fname: str
             FITS image.
 
@@ -123,12 +121,12 @@ class SkyLineMember(object):
         """
         self._fname = fname
         self._ext = ext
-        self._polygon = SphericalPolygon.from_wcs(
-            wcsutil.HSTWCS(fname, ext=ext))
+        self._wcs = wcsutil.HSTWCS(fname, ext=ext)
+        self._polygon = SphericalPolygon.from_wcs(self.wcs)
 
     def __repr__(self):
-        return 'SkyLineMember(%r, %r, %r)' % (self.fname, self.ext,
-                                              self.polygon)
+        return '%s(%r, %r, %r, %r)' % (self.__class__.__name__, self.fname,
+                                       self.ext, self.wcs, self.polygon)
 
     @property
     def fname(self):
@@ -137,6 +135,10 @@ class SkyLineMember(object):
     @property
     def ext(self):
         return self._ext
+
+    @property
+    def wcs(self):
+        return self._wcs
 
     @property
     def polygon(self):
@@ -150,9 +152,6 @@ class SkyLine(object):
 
         Parameters
         ----------
-        self: obj
-            `SkyLine` instance.
-
         fname: str
             FITS image. `None` to create empty `SkyLine`.
 
@@ -174,7 +173,8 @@ class SkyLine(object):
 
         # Put mosaic of all the chips in SkyLine
         if len(self.members) > 0:
-            self.polygon = SphericalPolygon.multi_union([m.polygon for m in self.members])
+            self.polygon = SphericalPolygon.multi_union(
+                [m.polygon for m in self.members])
         else:
             self.polygon = SphericalPolygon([])
 
@@ -183,8 +183,8 @@ class SkyLine(object):
         if what in ('from_radec', 'from_cone', 'from_wcs',
                     'multi_union', 'multi_intersection',
                     '_find_new_inside',):
-            raise AttributeError('\'SkyLine\' object has no attribute \'%s\'' %
-                                 what)
+            raise AttributeError('\'%s\' object has no attribute \'%s\'' %
+                                 (self.__class__.__name__, what))
         else:
             return getattr(self.polygon, what)
 
@@ -192,7 +192,8 @@ class SkyLine(object):
         return deepcopy(self)
     
     def __repr__(self):
-        return 'SkyLine(%r, %r)' % (self.polygon, self.members)
+        return '%s(%r, %r)' % (self.__class__.__name__,
+                               self.polygon, self.members)
 
     @property
     def polygon(self):
@@ -222,6 +223,14 @@ class SkyLine(object):
 
             if v not in self._members:
                 self._members.append(v)
+
+    def to_wcs(self):
+        """
+        Combine WCS objects from all `members` and return a
+        new WCS object.
+
+        """
+        return output_wcs([m.wcs for m in self.members])
 
     def _find_members(self, given_members):
         """
@@ -288,3 +297,121 @@ class SkyLine(object):
         newcls.polygon = self.intersection(other)
         newcls.members = newcls._find_members(self.members + other.members)
         return newcls
+
+    def find_max_overlap(self, skylines):
+        """
+        Find `SkyLine` from a list of *skylines* that overlaps
+        the most with *self*.
+
+        Parameters
+        ----------
+        skylines: list
+            A list of `SkyLine` instances.
+
+        Returns
+        -------
+        max_skyline: `SkyLine` instance or `None`
+            `SkyLine` that overlaps the most or `None` if no
+            overlap found.
+
+        max_overlap_area: float
+            Area of intersection.
+        
+        """
+        max_skyline = None
+        max_overlap_area = 0.0
+
+        for next_s in skylines:
+            overlap_area = self.intersection(next_s).area()
+
+            if overlap_area > max_overlap_area:
+                max_overlap_area = overlap_area
+                max_skyline = next_s
+
+        return max_skyline, max_overlap_area
+
+    @staticmethod
+    def max_overlap_pair(skylines):
+        """
+        Find a pair of skylines with maximum overlap.
+
+        Parameters
+        ----------
+        skylines: list
+            A list of `SkyLine` instances.
+
+        Returns
+        -------
+        max_pair: tuple
+            Pair of `SkyLine` instances with max overlap
+            among given *skylines*. If no overlap found,
+            return `None`.
+
+        """       
+        max_pair = None
+        max_overlap_area = 0.0
+    
+        for i in xrange(len(skylines) - 1):
+            curr_s = skylines[i]
+            next_s, i_area = curr_s.find_max_overlap(skylines[i+1:])
+
+            if i_area > max_overlap_area:
+                max_overlap_area = i_area
+                max_pair = (curr_s, next_s)
+
+        return max_pair
+
+    @classmethod
+    def mosaic(cls, skylines):
+        """
+        Mosaic all overlapping *skylines*.
+
+        Parameters
+        ----------
+        skylines: list
+            A list of `SkyLine` instances.
+
+        Returns
+        -------
+        mosaic: `SkyLine` instance or `None`
+            Union of all overlapping *skylines*, or `None` if
+            no overlap found.
+
+        included: list
+            List of image names added to `mosaic` in the order
+            of addition.
+
+        excluded: list
+            List of image names excluded because they do not
+            overlap with `mosaic`.
+
+        """
+        out_order = []
+        excluded  = []
+        
+        starting_pair = cls.max_overlap_pair(skylines)
+        if starting_pair is None:
+            return starting_pair, out_order, excluded
+
+        remaining = list(skylines)
+
+        s1, s2 = starting_pair
+        mosaic = s1.add_image(s2)
+        out_order = [s1.members[0].fname, s2.members[0].fname]
+        remaining.remove(s1)
+        remaining.remove(s2)
+
+        while len(remaining) > 0:
+            next_skyline, i_area = mosaic.find_max_overlap(remaining)
+
+            if next_skyline is None:
+                for r in remaining:
+                    excluded.append(r.members[0].fname)
+                break
+
+            new_mos = mosaic.add_image(next_skyline)
+            mosaic = new_mos
+            out_order.append(next_skyline.members[0].fname)
+            remaining.remove(next_skyline)
+
+        return mosaic, out_order, excluded
