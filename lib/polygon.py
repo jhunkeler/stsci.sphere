@@ -95,7 +95,8 @@ class SphericalPolygon(object):
         return deepcopy(self)
 
     def __repr__(self):
-        return 'SphericalPolygon(%r, %r)' % (self.points, self.inside)
+        return '%s(%r, %r)' % (self.__class__.__name__,
+                               self.points, self.inside)
 
     @property
     def points(self):
@@ -505,7 +506,8 @@ class SphericalPolygon(object):
             A = \left| \sum^n_{i=0} X_i Y_{i+1} - X_{i+1}Y_i \right|
         """
         if len(self._points) < 3:
-            return np.float64(0.0)
+            #return np.float64(0.0)
+            return np.array(0.0)
 
         points = self._points.copy()
 
