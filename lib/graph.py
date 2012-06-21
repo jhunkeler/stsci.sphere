@@ -119,7 +119,7 @@ class Graph:
                 emphirical test cases. Relative threshold based on
                 the actual sizes of polygons is not implemented.
             """
-            #return np.array_equal(self._point, other._point)
+            # return np.array_equal(self._point, other._point)
             return great_circle_arc.length(self._point, other._point,
                                            degrees=False) < thres
 
@@ -412,11 +412,11 @@ class Graph:
         except AssertionError as e:
             import traceback
             traceback.print_exc()
-            self._dump_graph()
+            self._dump_graph(title=title)
             raise
 
     def _dump_graph(self, title=None, lon_0=0, lat_0=90,
-                    projection='ortho', func=lambda x: len(x._edges)):
+                    projection='vandg', func=lambda x: len(x._edges)):
         from mpl_toolkits.basemap import Basemap
         from matplotlib import pyplot as plt
         fig = plt.figure()
@@ -478,7 +478,9 @@ class Graph:
         self._remove_interior_edges()
         self._sanity_check("union - remove interior edges")
         self._remove_3ary_edges()
-        self._sanity_check("union - remove 3ary edges", True)
+        self._sanity_check("union - remove 3ary edges")
+        self._remove_orphan_nodes()
+        self._sanity_check("union - remove orphan nodes", True)
         return self._trace()
 
     def intersection(self):
@@ -501,7 +503,9 @@ class Graph:
         self._remove_exterior_edges()
         self._sanity_check("intersection - remove exterior edges")
         self._remove_3ary_edges(large_first=True)
-        self._sanity_check("intersection - remove 3ary edges", True)
+        self._sanity_check("intersection - remove 3ary edges")
+        self._remove_orphan_nodes()
+        self._sanity_check("intersection - remove orphan nodes", True)
         return self._trace()
 
     def _remove_cut_lines(self):
@@ -693,8 +697,8 @@ class Graph:
 
     def _remove_3ary_edges(self, large_first=False):
         """
-        Remove edges between pairs of nodes that have more than 3
-        edges.  This removes triangles that can't be traced.
+        Remove edges between pairs of nodes that have 3 or more edges.
+        This removes triangles that can't be traced.
         """
         if large_first:
             max_ary = 0
@@ -714,6 +718,21 @@ class Graph:
             for edge in removals:
                 if edge in self._edges:
                     self.remove_edge(edge)
+
+    def _remove_orphaned_nodes(self):
+        """
+        Remove nodes with fewer than 2 edges.
+        """
+        while True:
+            removes = []
+            for node in list(self._nodes):
+                if len(node._edges) < 2:
+                    removes.append(node)
+            if len(removes):
+                for node in removes:
+                    self.remove_node(node)
+            else:
+                break
 
     def _trace(self):
         """
