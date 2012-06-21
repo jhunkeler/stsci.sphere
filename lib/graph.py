@@ -479,7 +479,7 @@ class Graph:
         self._sanity_check("union - remove interior edges")
         self._remove_3ary_edges()
         self._sanity_check("union - remove 3ary edges")
-        self._remove_orphan_nodes()
+        self._remove_orphaned_nodes()
         self._sanity_check("union - remove orphan nodes", True)
         return self._trace()
 
@@ -504,7 +504,7 @@ class Graph:
         self._sanity_check("intersection - remove exterior edges")
         self._remove_3ary_edges(large_first=True)
         self._sanity_check("intersection - remove 3ary edges")
-        self._remove_orphan_nodes()
+        self._remove_orphaned_nodes()
         self._sanity_check("intersection - remove orphan nodes", True)
         return self._trace()
 
