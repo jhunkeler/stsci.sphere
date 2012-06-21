@@ -291,7 +291,8 @@ class SphericalPolygon(object):
 
     def _unique_points(self):
         """
-        Remove duplicate `points`. Order is preserved.
+        Return a copy of `points` with duplicates removed.
+        Order is preserved.
 
         .. note:: Output cannot be used to build a new
             polygon.
@@ -305,10 +306,10 @@ class SphericalPolygon(object):
 
     def _sorted_points(self, preserve_order=True, unique=False):
         """
-        Sort `points` such that smallest (*x*, *y*, *z*)
-        is on top.
+        Return a copy of `points` sorted such that smallest
+        (*x*, *y*, *z*) is on top.
 
-        .. note:: Output caanot be used to build a new
+        .. note:: Output cannot be used to build a new
             polygon.
 
         Parameters
@@ -316,7 +317,7 @@ class SphericalPolygon(object):
         preserve_order: bool
             Preserve original order? If `True`, polygon is
             rotated around min point. If `False`, all points
-            are sorted.
+            are sorted in ascending order.
 
         unique : bool
             Exclude duplicates.
