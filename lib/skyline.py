@@ -227,10 +227,15 @@ class SkyLine(object):
     def to_wcs(self):
         """
         Combine WCS objects from all `members` and return a
-        new WCS object.
+        new WCS object. If no `members`, return `None`.
 
         """
-        return output_wcs([m.wcs for m in self.members])
+        wcs = None
+        
+        if len(self.members) > 0:
+            wcs = output_wcs([m.wcs for m in self.members])
+
+        return wcs
 
     def _find_members(self, given_members):
         """
@@ -415,3 +420,18 @@ class SkyLine(object):
             remaining.remove(next_skyline)
 
         return mosaic, out_order, excluded
+
+    @classmethod
+    def _find_frosty(cls, show=False):
+        s1 = SphericalPolygon.from_cone(0, 35, 8)
+        s2 = SphericalPolygon.from_cone(0, 20, 13)
+        s3 = SphericalPolygon.from_cone(0, 0, 20)
+        ss = SphericalPolygon.multi_union([s1,s2,s3])
+        frosty = cls(None)
+        frosty.polygon = ss
+        if show:
+            from mpl_toolkits.basemap import Basemap
+            map = Basemap()
+            frosty.draw(map)
+            print('Frosty the Snowman says Brrr so cold...')
+        return frosty
