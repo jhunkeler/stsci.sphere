@@ -290,23 +290,36 @@ class SphericalPolygon(object):
         return cls(np.dstack((x, y, z))[0], (xc[0], yc[0], zc[0]))
 
     def _unique_points(self):
-        """Ignore duplicate `points`. Order not preserved."""
-        # http://stackoverflow.com/questions/7989722/finding-unique-points-in-numpy-array
-        if len(self.points) == 0:
-            val = []
-        else:
-            val = np.vstack([np.array(u) for u in
-                             set([tuple(p) for p in self.points])])
-        return val
-
-    def _sorted_points(self, unique=True):
         """
-        Sort `points` in the order of *x*, *y*, and *z*.
+        Remove duplicate `points`. Order is preserved.
+
+        .. note:: Output cannot be used to build a new
+            polygon.
+        """
+        val = []
+        for p in self.points:
+            v = tuple(p)
+            if v not in val:
+                val.append(v)
+        return np.array(val)
+
+    def _sorted_points(self, preserve_order=True, unique=False):
+        """
+        Sort `points` such that smallest (*x*, *y*, *z*)
+        is on top.
+
+        .. note:: Output caanot be used to build a new
+            polygon.
 
         Parameters
         ----------
+        preserve_order: bool
+            Preserve original order? If `True`, polygon is
+            rotated around min point. If `False`, all points
+            are sorted.
+
         unique : bool
-            Ignore duplicates.
+            Exclude duplicates.
         """
         if len(self.points) == 0:
             return []
@@ -314,21 +327,33 @@ class SphericalPolygon(object):
         if unique:
             pts = self._unique_points()
         else:
-            pts = self.points.copy()
+            pts = self.points
 
-        return pts[np.lexsort((pts[:,0], pts[:,1], pts[:,2]))]
+        idx = np.lexsort((pts[:,0], pts[:,1], pts[:,2]))
+
+        if preserve_order:
+            i_min = idx[0]
+            val = np.vstack([pts[i_min:], pts[:i_min]])
+        else:
+            val = pts[idx]
+
+        return val
 
     def same_points_as(self, other, do_sort=True, thres=0.01):
         """
         Determines if this `SphericalPolygon` points are the same
-        as the other.
+        as the other. Number of points and areas are also compared.
+
+        When `do_sort` is `True`, even when *self* and *other*
+        have same points, they might not be equivalent because
+        the order of the points defines the polygon.
 
         Parameters
         ----------
         other : `SphericalPolygon`
 
         do_sort : bool
-            Compare unique sorted points.
+            Compare sorted unique points.
 
         thres : float
             Fraction of area to use in equality decision.
@@ -352,8 +377,8 @@ class SphericalPolygon(object):
             return False
         
         if do_sort:
-            self_pts  = self._sorted_points()
-            other_pts = other._sorted_points()
+            self_pts  = self._sorted_points(preserve_order=False, unique=True)
+            other_pts = other._sorted_points(preserve_order=False, unique=True)
         else:
             self_pts  = self.points
             other_pts = other.points
