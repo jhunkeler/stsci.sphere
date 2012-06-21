@@ -312,7 +312,7 @@ class SkyLine(object):
         -------
         max_skyline: `SkyLine` instance or `None`
             `SkyLine` that overlaps the most or `None` if no
-            overlap found.
+            overlap found. This is *not* a copy.
 
         max_overlap_area: float
             Area of intersection.
@@ -345,7 +345,7 @@ class SkyLine(object):
         max_pair: tuple
             Pair of `SkyLine` instances with max overlap
             among given *skylines*. If no overlap found,
-            return `None`.
+            return `None`. These are *not* copies.
 
         """       
         max_pair = None
