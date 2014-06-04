@@ -423,19 +423,14 @@ class Graph:
             import traceback
             traceback.print_exc()
             self._dump_graph(title=title)
-            import pdb
-            pdb.set_trace()
             raise
 
     def _dump_graph(self, title=None, lon_0=0, lat_0=90,
-                    projection='vandg', func=lambda x: len(x._edges), poly=None,
-                    edge=None, file=None, show=True):
+                    projection='vandg', func=lambda x: len(x._edges)):
         from mpl_toolkits.basemap import Basemap
         from matplotlib import pyplot as plt
         fig = plt.figure()
         m = Basemap()
-
-        in_edge = edge
 
         counts = {}
         for node in self._nodes:
@@ -443,52 +438,27 @@ class Graph:
             counts.setdefault(count, [])
             counts[count].append(list(node._point))
 
-        if poly is not None:
-            poly.draw(m, lw=20.0, color="black", alpha=0.3)
-
-        if edge is not None:
-            A, B = [x._point for x in edge._nodes]
-            r0, d0 = vector.vector_to_radec(A[0], A[1], A[2])
-            r1, d1 = vector.vector_to_radec(B[0], B[1], B[2])
-            x0, y0 = m(r0, d0)
-            x1, y1 = m(r1, d1)
-            m.drawgreatcircle(r0, d0, r1, d1, color="green", lw=10, alpha=0.5)
-            in_edge = None
-            minx = min(x0, x1)
-            maxx = max(x0, x1)
-            miny = min(y0, y1)
-            maxy = max(y0, y1)
-
-        for edge in list(self._edges):
-            count = getattr(edge, '_count', 0)
-            A, B = [x._point for x in edge._nodes]
-            r0, d0 = vector.vector_to_radec(A[0], A[1], A[2])
-            r1, d1 = vector.vector_to_radec(B[0], B[1], B[2])
-            if count:
-                m.drawgreatcircle(r0, d0, r1, d1, color="red", lw=2*count)
-            else:
-                m.drawgreatcircle(r0, d0, r1, d1, color="black", lw=0.5)
-
-        if in_edge is None:
-            minx = np.inf
-            miny = np.inf
-            maxx = -np.inf
-            maxy = -np.inf
+        minx = np.inf
+        miny = np.inf
+        maxx = -np.inf
+        maxy = -np.inf
         for k, v in counts.items():
             v = np.array(v)
             ra, dec = vector.vector_to_radec(v[:, 0], v[:, 1], v[:, 2])
             x, y = m(ra, dec)
             m.plot(x, y, 'o', label=str(k))
-            if in_edge is None:
-                for x0 in x:
-                    minx = min(x0, minx)
-                    maxx = max(x0, maxx)
-                for y0 in y:
-                    miny = min(y0, miny)
-                    maxy = max(y0, maxy)
+            for x0 in x:
+                minx = min(x0, minx)
+                maxx = max(x0, maxx)
+            for y0 in y:
+                miny = min(y0, miny)
+                maxy = max(y0, maxy)
 
-        # for polygon in self._source_polygons:
-        #     polygon.draw(m)
+        for edge in list(self._edges):
+            A, B = [x._point for x in edge._nodes]
+            r0, d0 = vector.vector_to_radec(A[0], A[1], A[2])
+            r1, d1 = vector.vector_to_radec(B[0], B[1], B[2])
+            m.drawgreatcircle(r0, d0, r1, d1, color='blue')
 
         plt.xlim(minx, maxx)
         plt.ylim(miny, maxy)
@@ -496,11 +466,7 @@ class Graph:
             plt.title("%s, %d v, %d e" % (
                 title, len(self._nodes), len(self._edges)))
         plt.legend()
-        if file is not None:
-            plt.savefig(file)
-        elif show:
-            plt.show()
-            plt.close('all')
+        plt.show()
 
     def union(self):
         """

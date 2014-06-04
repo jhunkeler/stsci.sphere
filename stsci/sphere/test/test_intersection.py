@@ -83,10 +83,9 @@ class intersection_test:
 
 @intersection_test(0, 90)
 def test1():
-    import pyfits
-    import os
+    from astropy.io import fits
 
-    fits = pyfits.open(resolve_imagename(ROOT_DIR,'1904-66_TAN.fits'))
+    fits = fits.open(resolve_imagename(ROOT_DIR,'1904-66_TAN.fits'))
     header = fits[0].header
 
     poly1 = polygon.SphericalPolygon.from_wcs(
@@ -107,8 +106,8 @@ def test2():
 
 @intersection_test(0, 90)
 def test3():
-    import pyfits
-    fits = pyfits.open(resolve_imagename(ROOT_DIR, '1904-66_TAN.fits'))
+    from astropy.io import fits
+    fits = fits.open(resolve_imagename(ROOT_DIR, '1904-66_TAN.fits'))
     header = fits[0].header
 
     poly1 = polygon.SphericalPolygon.from_wcs(
@@ -120,11 +119,11 @@ def test3():
 
 
 def test4():
-    import pyfits
-    import pywcs
+    from astropy.io import fits
+    from astropy import wcs as pywcs
 
-    A = pyfits.open(os.path.join(ROOT_DIR, '2chipA.fits.gz'))
-    B = pyfits.open(os.path.join(ROOT_DIR, '2chipB.fits.gz'))
+    A = fits.open(os.path.join(ROOT_DIR, '2chipA.fits.gz'))
+    B = fits.open(os.path.join(ROOT_DIR, '2chipB.fits.gz'))
 
     wcs = pywcs.WCS(A[1].header, fobj=A)
     chipA1 = polygon.SphericalPolygon.from_wcs(wcs)
@@ -141,32 +140,32 @@ def test4():
     X = Apoly.intersection(Bpoly)
 
 
-def test5():
-    import pyfits
-    import pywcs
+# def test5():
+#     from astropy.io import fits
+#     from astropy import wcs as pywcs
 
-    A = pyfits.open(os.path.join(ROOT_DIR, '2chipA.fits.gz'))
-    B = pyfits.open(os.path.join(ROOT_DIR, '2chipB.fits.gz'))
+#     A = fits.open(os.path.join(ROOT_DIR, '2chipA.fits.gz'))
+#     B = fits.open(os.path.join(ROOT_DIR, '2chipB.fits.gz'))
 
-    wcs = pywcs.WCS(A[1].header, fobj=A)
-    chipA1 = polygon.SphericalPolygon.from_wcs(wcs)
-    wcs = pywcs.WCS(A[4].header, fobj=A)
-    chipA2 = polygon.SphericalPolygon.from_wcs(wcs)
-    wcs = pywcs.WCS(B[1].header, fobj=B)
-    chipB1 = polygon.SphericalPolygon.from_wcs(wcs)
-    wcs = pywcs.WCS(B[4].header, fobj=B)
-    chipB2 = polygon.SphericalPolygon.from_wcs(wcs)
+#     wcs = pywcs.WCS(A[1].header, fobj=A)
+#     chipA1 = polygon.SphericalPolygon.from_wcs(wcs)
+#     wcs = pywcs.WCS(A[4].header, fobj=A)
+#     chipA2 = polygon.SphericalPolygon.from_wcs(wcs)
+#     wcs = pywcs.WCS(B[1].header, fobj=B)
+#     chipB1 = polygon.SphericalPolygon.from_wcs(wcs)
+#     wcs = pywcs.WCS(B[4].header, fobj=B)
+#     chipB2 = polygon.SphericalPolygon.from_wcs(wcs)
 
-    Apoly = chipA1.union(chipA2)
-    Bpoly = chipB1.union(chipB2)
+#     Apoly = chipA1.union(chipA2)
+#     Bpoly = chipB1.union(chipB2)
 
-    Apoly.overlap(chipB1)
+#     Apoly.overlap(chipB1)
 
 
 @intersection_test(0, 90)
 def test6():
-    import pyfits
-    fits = pyfits.open(resolve_imagename(ROOT_DIR, '1904-66_TAN.fits'))
+    from astropy.io import fits
+    fits = fits.open(resolve_imagename(ROOT_DIR, '1904-66_TAN.fits'))
     header = fits[0].header
 
     poly1 = polygon.SphericalPolygon.from_wcs(
