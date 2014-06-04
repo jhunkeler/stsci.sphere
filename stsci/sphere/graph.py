@@ -124,9 +124,7 @@ class Graph:
                 emphirical test cases. Relative threshold based on
                 the actual sizes of polygons is not implemented.
             """
-            # return np.array_equal(self._point, other._point)
-            return great_circle_arc.length(self._point, other._point,
-                                           degrees=False) < thres
+            return np.array_equal(self._point, other._point)
 
 
     class Edge:
@@ -425,14 +423,19 @@ class Graph:
             import traceback
             traceback.print_exc()
             self._dump_graph(title=title)
+            import pdb
+            pdb.set_trace()
             raise
 
     def _dump_graph(self, title=None, lon_0=0, lat_0=90,
-                    projection='vandg', func=lambda x: len(x._edges)):
+                    projection='vandg', func=lambda x: len(x._edges), poly=None,
+                    edge=None, file=None, show=True):
         from mpl_toolkits.basemap import Basemap
         from matplotlib import pyplot as plt
         fig = plt.figure()
         m = Basemap()
+
+        in_edge = edge
 
         counts = {}
         for node in self._nodes:
@@ -440,27 +443,52 @@ class Graph:
             counts.setdefault(count, [])
             counts[count].append(list(node._point))
 
-        minx = np.inf
-        miny = np.inf
-        maxx = -np.inf
-        maxy = -np.inf
+        if poly is not None:
+            poly.draw(m, lw=20.0, color="black", alpha=0.3)
+
+        if edge is not None:
+            A, B = [x._point for x in edge._nodes]
+            r0, d0 = vector.vector_to_radec(A[0], A[1], A[2])
+            r1, d1 = vector.vector_to_radec(B[0], B[1], B[2])
+            x0, y0 = m(r0, d0)
+            x1, y1 = m(r1, d1)
+            m.drawgreatcircle(r0, d0, r1, d1, color="green", lw=10, alpha=0.5)
+            in_edge = None
+            minx = min(x0, x1)
+            maxx = max(x0, x1)
+            miny = min(y0, y1)
+            maxy = max(y0, y1)
+
+        for edge in list(self._edges):
+            count = getattr(edge, '_count', 0)
+            A, B = [x._point for x in edge._nodes]
+            r0, d0 = vector.vector_to_radec(A[0], A[1], A[2])
+            r1, d1 = vector.vector_to_radec(B[0], B[1], B[2])
+            if count:
+                m.drawgreatcircle(r0, d0, r1, d1, color="red", lw=2*count)
+            else:
+                m.drawgreatcircle(r0, d0, r1, d1, color="black", lw=0.5)
+
+        if in_edge is None:
+            minx = np.inf
+            miny = np.inf
+            maxx = -np.inf
+            maxy = -np.inf
         for k, v in counts.items():
             v = np.array(v)
             ra, dec = vector.vector_to_radec(v[:, 0], v[:, 1], v[:, 2])
             x, y = m(ra, dec)
             m.plot(x, y, 'o', label=str(k))
-            for x0 in x:
-                minx = min(x0, minx)
-                maxx = max(x0, maxx)
-            for y0 in y:
-                miny = min(y0, miny)
-                maxy = max(y0, maxy)
+            if in_edge is None:
+                for x0 in x:
+                    minx = min(x0, minx)
+                    maxx = max(x0, maxx)
+                for y0 in y:
+                    miny = min(y0, miny)
+                    maxy = max(y0, maxy)
 
-        for edge in list(self._edges):
-            A, B = [x._point for x in edge._nodes]
-            r0, d0 = vector.vector_to_radec(A[0], A[1], A[2])
-            r1, d1 = vector.vector_to_radec(B[0], B[1], B[2])
-            m.drawgreatcircle(r0, d0, r1, d1, color='blue')
+        # for polygon in self._source_polygons:
+        #     polygon.draw(m)
 
         plt.xlim(minx, maxx)
         plt.ylim(miny, maxy)
@@ -468,7 +496,11 @@ class Graph:
             plt.title("%s, %d v, %d e" % (
                 title, len(self._nodes), len(self._edges)))
         plt.legend()
-        plt.show()
+        if file is not None:
+            plt.savefig(file)
+        elif show:
+            plt.show()
+            plt.close('all')
 
     def union(self):
         """
@@ -615,12 +647,9 @@ class Graph:
             A = starts[0]; starts = starts[1:]  # numpy equiv of "pop(0)"
             B = ends[0];   ends = ends[1:]      # numpy equiv of "pop(0)"
 
-            distance = great_circle_arc.length(A, B)
             for node in self._nodes:
                 if node not in AB._nodes:
-                    distanceA = great_circle_arc.length(node._point, A)
-                    distanceB = great_circle_arc.length(node._point, B)
-                    if np.abs((distanceA + distanceB) - distance) < 1e-8:
+                    if great_circle_arc.intersects_point(A, B, node._point):
                         newA, newB = self.split_edge(AB, node)
 
                         new_edges = [
@@ -707,15 +736,20 @@ class Graph:
 
         for edge in self._edges:
             edge._count = 0
+            A, B = edge._nodes
             for polygon in polygons:
                 if (not polygon in edge._source_polygons and
-                    polygon.intersects_arc(
-                        edge._nodes[0]._point, edge._nodes[1]._point)):
+                    ((polygon in A._source_polygons or
+                      polygon.contains_point(A._point)) and
+                     (polygon in B._source_polygons or
+                      polygon.contains_point(B._point)))):
                     edge._count += 1
 
         for edge in list(self._edges):
             if edge._count >= 1:
                 self.remove_edge(edge)
+
+        self._remove_orphaned_nodes()
 
     def _remove_exterior_edges(self):
         """
@@ -726,15 +760,22 @@ class Graph:
 
         for edge in self._edges:
             edge._count = 0
+            A, B = edge._nodes
             for polygon in polygons:
-                if (polygon in edge._source_polygons or
-                    polygon.intersects_arc(
-                        edge._nodes[0]._point, edge._nodes[1]._point)):
+                if polygon in edge._source_polygons:
                     edge._count += 1
+                else:
+                    if ((polygon in A._source_polygons or
+                         polygon.contains_point(A._point)) and
+                        (polygon in B._source_polygons or
+                         polygon.contains_point(B._point))):
+                        edge._count += 1
 
         for edge in list(self._edges):
             if edge._count < len(polygons):
                 self.remove_edge(edge)
+
+        self._remove_orphaned_nodes()
 
     def _remove_3ary_edges(self, large_first=False):
         """

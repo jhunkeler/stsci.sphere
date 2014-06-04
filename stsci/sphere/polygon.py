@@ -498,16 +498,20 @@ class SphericalPolygon(object):
         Determines if this `SphericalPolygon` intersects or contains
         the given arc.
         """
-        return self.contains_point(great_circle_arc.midpoint(a, b))
-
-        if self.contains_point(a) and self.contains_point(b):
-            return True
-
         P = self._points
-        intersects = great_circle_arc.intersects(P[:-1], P[1:], a, b)
-        if np.any(intersects):
+
+        if self.contains_arc(a, b):
             return True
-        return False
+
+        intersects = great_circle_arc.intersects(P[:-1], P[1:], a, b)
+        return np.any(intersects)
+
+    def contains_arc(self, a, b):
+        """
+        Returns `True` if the polygon fully encloses the arc given by a
+        and b.
+        """
+        return self.contains_point(a) and self.contains_point(b)
 
     def area(self):
         r"""
