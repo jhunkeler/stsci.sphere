@@ -104,6 +104,9 @@ class SphericalPolygon(object):
         return '%s(%r, %r)' % (self.__class__.__name__,
                                self.points, self.inside)
 
+    def copy(self):
+        return self.__class__(self._points.copy(), self._inside.copy())
+
     @property
     def points(self):
         """
@@ -604,6 +607,11 @@ class SphericalPolygon(object):
         module.
         """
         from . import graph
+        if len(self._points) < 3:
+            return other.copy()
+        elif len(other._points) < 3:
+            return self.copy()
+
         g = graph.Graph([self, other])
 
         polygon = g.union()

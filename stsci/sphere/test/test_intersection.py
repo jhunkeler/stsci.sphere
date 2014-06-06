@@ -176,6 +176,18 @@ def test6():
     return [poly1, poly2]
 
 
+def test_union_empty():
+    p = polygon.SphericalPolygon.from_cone(
+        random.randrange(-180, 180),
+        random.randrange(20, 90),
+        random.randrange(5, 16),
+        steps=16)
+
+    p2 = p.intersection(polygon.SphericalPolygon([]))
+
+    assert_array_almost_equal(p2._points, p._points)
+
+
 if __name__ == '__main__':
     if '--profile' not in sys.argv:
         GRAPH_MODE = True

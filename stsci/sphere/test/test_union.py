@@ -214,3 +214,15 @@ if __name__ == '__main__':
     functions.sort()
     for k, v in functions:
         v()
+
+
+def test_union_empty():
+    p = polygon.SphericalPolygon.from_cone(
+        random.randrange(-180, 180),
+        random.randrange(20, 90),
+        random.randrange(5, 16),
+        steps=16)
+
+    p2 = p.union(polygon.SphericalPolygon([]))
+
+    assert_array_almost_equal(p2._points, p._points)
