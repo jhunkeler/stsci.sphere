@@ -124,7 +124,7 @@ normalize(double *A) {
 static inline void
 normalizel(long double *A) {
     long double l = A[0]*A[0] + A[1]*A[1] + A[2]*A[2];
-    if (l != 1.0) {
+    if (l != 1.0L) {
         l = sqrtl(l);
         A[0] /= l;
         A[1] /= l;
@@ -132,41 +132,19 @@ normalizel(long double *A) {
     }
 }
 
-static inline double
-dot(const double *A, const double *B) {
-    return A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
-}
-
 static inline long double
 dotl(const long double *A, const long double *B) {
     return A[0]*B[0] + A[1]*B[1] + A[2]*B[2];
 }
 
-static inline double
-sign(const double A) {
-    return (A == 0.0) ? 0.0 : ((A < 0.0) ? -1.0 : 1.0);
-}
-
 static inline long double
 signl(const long double A) {
-    return (A == 0.0) ? 0.0 : ((A < 0.0) ? -1.0 : 1.0);
-}
-
-static inline int
-equals(const double *A, const double *B) {
-    return A[0] == B[0] && A[1] == B[1] && A[2] == B[2];
+    return (A == 0.0L) ? 0.0L : ((A < 0.0L) ? -1.0L : 1.0L);
 }
 
 static inline int
 equalsl(const long double *A, const long double *B) {
     return A[0] == B[0] && A[1] == B[1] && A[2] == B[2];
-}
-
-static inline void
-mult(double *T, const double f) {
-    T[0] *= f;
-    T[1] *= f;
-    T[2] *= f;
 }
 
 static inline void
@@ -182,7 +160,7 @@ lengthl(long double *A, long double *B) {
 
     /* Special case for "exactly equal" that avoids all of the calculation. */
     if (equalsl(A, B)) {
-        return 0;
+        return 0.0L;
     }
 
     s = dotl(A, B);
@@ -449,7 +427,7 @@ DOUBLE_intersects_point(char **args, intp *dimensions, intp *steps, void *NPY_UN
 
         diff = fabsl((left + right) - total);
 
-        *((uint8_t *)op) = diff < 1e-10;
+        *((uint8_t *)op) = diff < 1e-10L;
     END_OUTER_LOOP
 }
 
