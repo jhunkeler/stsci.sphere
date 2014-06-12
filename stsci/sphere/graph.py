@@ -78,8 +78,6 @@ class Graph:
             source_polygon : `~sphere.polygon.SphericalPolygon` instance, optional
                 The polygon(s) this node came from.  Used for bookkeeping.
             """
-            point = vector.normalize_vector(*point)
-
             self._point = np.asanyarray(point)
             self._source_polygons = set(source_polygons)
             self._edges = weakref.WeakSet()
@@ -233,7 +231,7 @@ class Graph:
         points = polygon._points
 
         if len(points) < 3:
-            raise ValueError("Too few points in polygon")
+            return
 
         self._source_polygons.add(polygon)
 
@@ -264,21 +262,23 @@ class Graph:
         node : `~Graph.Node` instance
             The new node
         """
-        new_node = self.Node(point, source_polygons)
+        # Any nodes whose Cartesian coordinates are closer together
+        # than 2 ** -32 will cause numerical problems in the
+        # intersection calculations, so we merge any nodes that
+        # are closer together than that.
 
         # Don't add nodes that already exist.  Update the existing
         # node's source_polygons list to include the new polygon.
 
-        # Nodes that are closer together than 1e-10 are automatically
-        # merged, since we can't numerically determine whether those
-        # nodes are the same, or just along an arc.
+        point = vector.normalize_vector(*point)
 
         # TODO: Vectorize this
         for node in self._nodes:
-            if great_circle_arc.length(node._point, new_node._point) < 1e-10:
+            if np.all(np.abs(node._point - point) < 2 ** -32):
                 node._source_polygons.update(source_polygons)
                 return node
 
+        new_node = self.Node(point, source_polygons)
         self._nodes.add(new_node)
         return new_node
 
