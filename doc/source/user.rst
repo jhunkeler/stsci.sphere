@@ -13,11 +13,7 @@ Requirements
 
 - Numpy 1.4 or later
 
-- PyFITS
-
-- PyWCS
-
-- STWCS
+- astropy 0.3 or later
 
 Coordinate representation
 -------------------------
@@ -34,7 +30,7 @@ contains functions to convert between (*ra*, *dec*) and (*x*, *y*,
 
 While any (*x*, *y*, *z*) triple represents a vector and therefore a
 location on the sky sphere, a distinction must be made between
-normalized coordinates fall exactly on the unit sphere, and
+normalized coordinates that fall exactly on the unit sphere, and
 unnormalized coordinates which do not.  A normalized coordinate is
 defined as a vector whose length is 1, i.e.:
 
@@ -47,10 +43,20 @@ assume that the vectors passed in are already normalized.  If this is
 not the case, `stsci.sphere.vector.normalize_vector` can be used to
 normalize an array of vectors.
 
-The library allows the user to work in either degrees or radians.  All
-methods that require or return an angular value have a `degrees`
-keyword argument.  When `degrees` is `True`, these measurements are in
-degrees, otherwise they are in radians.
+When not working in Cartesian vectors, the library allows the user to
+work in either degrees or radians.  All methods that require or return
+an angular value have a `degrees` keyword argument.  When `degrees` is
+`True`, these measurements are in degrees, otherwise they are in
+radians.
+
+.. warning::
+
+    Due to constraints in the precision of intersection calculations,
+    points on the sphere that are closer than :math:`2^{-32}` along a
+    Cartesian axis are automatically merged into a single point.  This
+    prevents intersections from being missed due to floating point
+    rounding error.  There is currently no implemented solution to
+    deal with points that need to be closer together.
 
 Spherical polygons
 ------------------
@@ -117,7 +123,7 @@ Creating spherical polygons
 
   - `SphericalPolygon.from_wcs`: Creates a polygon from the footprint
     of a FITS image using its WCS header keywords.  Takes a FITS
-    filename or a `pyfits.Header` object.
+    filename or a `astropy.io.fits.Header` object.
 
 Operations on Spherical Polygons
 ````````````````````````````````
@@ -168,6 +174,9 @@ functions that are useful for dealing with them.
   circle arcs.
 
 - `intersects`: Determines if two great circle arcs intersect.
+
+- `intersects_point`: Determines if a point is along the great circle
+  arc.
 
 - `angle`: Calculate the angle between two great circle arcs.
 
