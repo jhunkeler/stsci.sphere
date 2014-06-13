@@ -209,7 +209,7 @@ def test_difficult_unions():
         poly = polygon.SphericalPolygon(points, inside)
         polys.append(poly)
 
-    polygon.SphericalPolygon.multi_union(polys)
+    polygon.SphericalPolygon.multi_union(polys[:len(polys)/2])
 
 
 if __name__ == '__main__':
