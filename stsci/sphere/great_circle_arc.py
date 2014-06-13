@@ -84,11 +84,11 @@ def _fast_cross(a, b):
     return cp
 
 
-def _cross_and_normalize(A, B):
-    if HAS_C_UFUNCS:
-        with np.errstate(invalid='ignore'):
-            return math_util.cross_and_norm(A, B)
+if HAS_C_UFUNCS:
+    _fast_cross = math_util.cross
 
+
+def _cross_and_normalize(A, B):
     T = _fast_cross(A, B)
     # Normalization
     l = np.sqrt(np.sum(T ** 2, axis=-1))
@@ -97,6 +97,12 @@ def _cross_and_normalize(A, B):
     with np.errstate(invalid='ignore'):
         TN = T / l
     return TN
+
+
+if HAS_C_UFUNCS:
+    def _cross_and_normalize(A, B):
+        with np.errstate(invalid='ignore'):
+            return math_util.cross_and_norm(A, B)
 
 
 def intersection(A, B, C, D):
