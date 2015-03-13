@@ -1,6 +1,7 @@
-from __future__ import print_function, absolute_import
+from __future__ import print_function, absolute_import, division
 
 # STDLIB
+import codecs
 import functools
 import itertools
 import math
@@ -179,8 +180,8 @@ def test_difficult_intersections():
         lines = fd.readlines()
 
     def to_array(line):
-        x = np.frombuffer(line.strip().decode('hex'), dtype='<f8')
-        return x.reshape((len(x) / 3, 3))
+        x = np.frombuffer(codecs.decode(line.strip(), 'hex_codec'), dtype='<f8')
+        return x.reshape((len(x) // 3, 3))
 
     for i in range(0, len(lines), 4):
         Apoints, Ainside, Bpoints, Binside = [
@@ -228,7 +229,7 @@ def test_ordering():
         [3.532883212044564125e-01, 6.354215160430938258e-01, -6.866053153377369433e-01])
 
     areas = []
-    for i in xrange(nrepeat):
+    for i in range(nrepeat):
         C = A.intersection(B)
         areas.append(C.area())
     areas = np.array(areas)
@@ -243,7 +244,7 @@ def test_ordering():
     Aareas = []
     Bareas = []
     Careas = []
-    for i in xrange(nrepeat):
+    for i in range(nrepeat):
         AS = roll_polygon(A, i)
         BS = roll_polygon(B, i)
 
@@ -253,7 +254,7 @@ def test_ordering():
         Bareas.append(B.area())
         Careas.append(C.area())
 
-        for j in xrange(nrepeat):
+        for j in range(nrepeat):
             CS = roll_polygon(C, j)
             Careas.append(CS.area())
 

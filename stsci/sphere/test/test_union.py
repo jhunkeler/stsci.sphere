@@ -1,6 +1,7 @@
-from __future__ import print_function, absolute_import
+from __future__ import print_function, absolute_import, division
 
 # STDLIB
+import codecs
 import functools
 import itertools
 import math
@@ -199,8 +200,8 @@ def test_difficult_unions():
         lines = fd.readlines()
 
     def to_array(line):
-        x = np.frombuffer(line.strip().decode('hex'), dtype='<f8')
-        return x.reshape((len(x) / 3, 3))
+        x = np.frombuffer(codecs.decode(line.strip(), 'hex_codec'), dtype='<f8')
+        return x.reshape((len(x) // 3, 3))
 
     polys = []
     for i in range(0, len(lines), 2):
@@ -209,7 +210,7 @@ def test_difficult_unions():
         poly = polygon.SphericalPolygon(points, inside)
         polys.append(poly)
 
-    polygon.SphericalPolygon.multi_union(polys[:len(polys)/2])
+    polygon.SphericalPolygon.multi_union(polys[:len(polys)//2])
 
 
 if __name__ == '__main__':
