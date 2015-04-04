@@ -24,6 +24,13 @@ def test_normalize_vector():
     l = np.sqrt(np.sum(xyzn * xyzn, axis=-1))
     assert_almost_equal(l, 1.0)
 
+def test_normalize_unit_vector():
+    for i in range(3):
+        xyz = [0.0, 0.0, 0.0]
+        xyz[i] = 1.0
+        xyzn = vector.normalize_vector(xyz)
+        l = np.sqrt(np.sum(xyzn * xyzn, axis=-1))
+        assert_almost_equal(l, 1.0)
 
 def test_radec_to_vector():
     npx, npy, npz = vector.radec_to_vector(np.arange(-360, 360, 1), 90)
@@ -250,7 +257,7 @@ def test_great_circle_arc_angle():
     A = [1, 0, 0]
     B = [0, 1, 0]
     C = [0, 0, 1]
-    assert great_circle_arc.angle(A, B, C) == 90.0
+    assert great_circle_arc.angle(A, B, C) == 270.0
 
     # TODO: More angle tests
 
@@ -260,8 +267,7 @@ def test_cone():
     for i in range(50):
         ra = random.randrange(-180, 180)
         dec = random.randrange(20, 90)
-        cone = polygon.SphericalPolygon.from_cone(ra, dec, 8, steps=64)
-
+        polygon.SphericalPolygon.from_cone(ra, dec, 8, steps=64)
 
 def test_area():
     triangles = [
@@ -277,6 +283,13 @@ def test_area():
         poly = polygon.SphericalPolygon(points)
         calc_area = poly.area()
 
+def test_cone_area():
+    saved_area = None
+    for ra in  (0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330):
+        for dec in (0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330):
+            area = polygon.SphericalPolygon.from_cone(ra, dec, 30, steps=64).area()
+            if saved_area is None: saved_area = area 
+            assert_almost_equal(area, saved_area)
 
 def test_fast_area():
     a = np.array(  # Clockwise
@@ -304,6 +317,14 @@ def test_fast_area():
         [ 0.3536442 ,  0.63515101, -0.68667239],
         [ 0.35331737,  0.6351013 , -0.68688658]])
 
-    assert graph.Graph._fast_area(a) > 0
-    assert graph.Graph._fast_area(b) > 0
-    assert graph.Graph._fast_area(c) < 0
+    apoly = polygon._SingleSphericalPolygon(a)
+    bpoly = polygon._SingleSphericalPolygon(b)
+    cpoly = polygon._SingleSphericalPolygon(c)
+
+    aarea = apoly.area()
+    barea = bpoly.area()
+    carea = cpoly.area()
+    
+    assert aarea > 0 and aarea < np.pi * 2.0
+    assert barea > 0 and barea < np.pi * 2.0
+    assert carea > np.pi * 2.0 and carea < np.pi * 4.0

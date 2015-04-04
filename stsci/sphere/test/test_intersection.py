@@ -40,7 +40,7 @@ class intersection_test:
             num_permutations = math.factorial(len(polys))
             step_size = int(max(float(num_permutations) / 20.0, 1.0))
 
-            areas = [x.area() for x in polys]
+            areas = np.array([x.area() for x in polys])
 
             if GRAPH_MODE:
                 print("%d permutations" % num_permutations)
@@ -72,9 +72,11 @@ class intersection_test:
                         plt.savefig(filename)
                         fig.clear()
 
-                    assert np.all(intersection_area * 0.9 <= areas)
+                    assert np.all(areas >= intersection_area * 0.9)
 
-            lengths = np.array([len(x._points) for x in intersections])
+            lengths = np.array([
+                np.sum(len(x._points) for x in y.iter_polygons_flat())
+                for y in intersections])
             assert np.all(lengths == [lengths[0]])
             areas = np.array([x.area() for x in intersections])
             assert_array_almost_equal(areas, areas[0], decimal=1)
@@ -164,7 +166,7 @@ def test_intersection_empty():
 
     p2 = p.intersection(polygon.SphericalPolygon([]))
 
-    assert_array_almost_equal(p2._points, [])
+    assert len(p2.polygons) == 0
 
 
 def test_difficult_intersections():
@@ -236,10 +238,14 @@ def test_ordering():
     assert_array_almost_equal(areas[:-1], areas[1:])
 
     def roll_polygon(P, i):
-        points = P.points
-        points = np.roll(points[:-1], i, 0)
-        points = np.append(points, [points[0]], 0)
-        return polygon.SphericalPolygon(points, P.inside)
+        polygons = []
+        for p in P.polygons:
+            points = p.points
+            points = np.roll(points[:-1], i, 0)
+            points = np.append(points, [points[0]], 0)
+            p = polygon._SingleSphericalPolygon(points, p.inside)
+            polygons.append(p)
+        return polygon.SphericalPolygon(polygons)
 
     Aareas = []
     Bareas = []

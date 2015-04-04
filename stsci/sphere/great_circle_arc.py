@@ -59,7 +59,7 @@ else:
     from numpy.core.umath_tests import inner1d
 
 
-___all__ = ['angle', 'intersection', 'intersects', 'intersects_point', 
+__all__ = ['angle', 'intersection', 'intersects', 'intersects_point', 
            'length', 'midpoint', 'interpolate']
 
 
@@ -285,9 +285,6 @@ def intersects_point(A, B, C):
     """
     Returns True if point C is along the great circle arc *AB*.
     """
-    if HAS_C_UFUNCS:
-        return math_util.intersects_point(A, B, C)
-
     total_length = length(A, B)
     left_length = length(A, C)
     right_length = length(C, B)
@@ -300,8 +297,6 @@ def intersects_point(A, B, C):
 def angle(A, B, C, degrees=True):
     """
     Returns the angle at *B* between *AB* and *BC*.
-
-    This always returns the shortest angle < π.
 
     Parameters
     ----------
@@ -333,8 +328,12 @@ def angle(A, B, C, degrees=True):
     ABX = _cross_and_normalize(B, ABX)
     BCX = _fast_cross(C, B)
     BCX = _cross_and_normalize(B, BCX)
+    X = _cross_and_normalize(ABX, BCX)
+    diff = inner1d(B, X)
+    inner = inner1d(ABX, BCX)
     with np.errstate(invalid='ignore'):
-        angle = np.arccos(inner1d(ABX, BCX))
+        angle = np.arccos(inner)
+    angle = np.where(diff < 0.0, (2.0 * np.pi) - angle, angle)
 
     if degrees:
         angle = np.rad2deg(angle)
@@ -392,7 +391,7 @@ def interpolate(A, B, steps=50):
 
         \frac{\sin((1 - t)\Omega)}{\sin \Omega}A + \frac{\sin(t \Omega)}{\sin \Omega}B
     """
-    steps = max(steps, 2)
+    steps = int(max(steps, 2))
     t = np.linspace(0.0, 1.0, steps, endpoint=True).reshape((steps, 1))
 
     omega = length(A, B, degrees=False)

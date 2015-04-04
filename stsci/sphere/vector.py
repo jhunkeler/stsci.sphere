@@ -44,6 +44,7 @@ import numpy as np
 
 try:
     from . import math_util
+    import math_util
     HAS_C_UFUNCS = True
 except ImportError:
     HAS_C_UFUNCS = False
