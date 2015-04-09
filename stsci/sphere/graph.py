@@ -410,10 +410,15 @@ class Graph:
         if not DEBUG:
             return
 
+        log = open("/tmp/sanity.log", 'a')
+        log.write("\n" + title + "\n")
         try:
             unique_edges = set()
+            log.write("list of edges\n")
             for edge in self._edges:
+                log.write("edge: " + str(edge) + "\n")
                 for node in edge._nodes:
+                    log.write("node: " + str(node) + "\n")
                     assert edge in node._edges
                     assert node in self._nodes
                 edge_repr = [tuple(x._point) for x in edge._nodes]
@@ -422,19 +427,24 @@ class Graph:
                 # assert edge_repr not in unique_edges
                 unique_edges.add(edge_repr)
 
+            log.write("list of nodes\n")
             for node in self._nodes:
+                log.write("node: " + str(node) + "\n")
                 if node_is_2:
-                    assert len(node._edges) == 2
+                    assert len(node._edges) % 2 == 0
                 else:
                     assert len(node._edges) >= 2
                 for edge in node._edges:
+                    log.write("edge: " + str(edge) + "\n")
                     assert node in edge._nodes
                     assert edge in self._edges
         except AssertionError as e:
+            log.close()
             import traceback
             traceback.print_exc()
             self._dump_graph(title=title)
             raise
+        log.close()
 
     def _dump_graph(self, title=None, lon_0=0, lat_0=90,
                     projection='vandg', func=lambda x: len(x._edges),
@@ -822,6 +832,9 @@ class Graph:
 
         polygons = []
         edges = set(self._edges)  # copy
+        for edge in self._edges:
+            edge._followed = False
+
         while len(edges):
             points = []
             edge = edges.pop()
@@ -833,7 +846,12 @@ class Graph:
                         points.append(node._point)
                 else:
                     points.append(node._point)
-                edge = node.follow(edge)
+                for edge in node._edges:
+                    if edge._followed is False:
+                        break
+                else:
+                    raise ValueError("No more edges to follow")
+                edge._followed = True
                 edges.discard(edge)
                 node = edge.follow(node)
                 if node is start_node:
