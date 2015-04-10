@@ -424,7 +424,7 @@ class Graph:
 
             for node in self._nodes:
                 if node_is_2:
-                    assert len(node._edges) == 2
+                    assert len(node._edges) % 2 == 0
                 else:
                     assert len(node._edges) >= 2
                 for edge in node._edges:
@@ -822,6 +822,9 @@ class Graph:
 
         polygons = []
         edges = set(self._edges)  # copy
+        for edge in self._edges:
+            edge._followed = False
+
         while len(edges):
             points = []
             edge = edges.pop()
@@ -833,7 +836,12 @@ class Graph:
                         points.append(node._point)
                 else:
                     points.append(node._point)
-                edge = node.follow(edge)
+                for edge in node._edges:
+                    if edge._followed is False:
+                        break
+                else:
+                    raise ValueError("No more edges to follow")
+                edge._followed = True
                 edges.discard(edge)
                 node = edge.follow(node)
                 if node is start_node:
