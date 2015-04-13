@@ -46,6 +46,7 @@ import numpy as np
 
 # LOCAL
 from . import great_circle_arc
+from . import math_util
 from . import vector
 
 # Set to True to enable some sanity checks
@@ -83,27 +84,6 @@ class Graph:
 
         def __repr__(self):
             return "Node(%s %d)" % (str(self._point), len(self._edges))
-
-        def follow(self, edge):
-            """
-            Follows from one edge to another across this node.
-
-            Parameters
-            ----------
-            edge : `~Graph.Edge` instance
-                The edge to follow away from.
-
-            Returns
-            -------
-            other : `~Graph.Edge` instance
-                The other edge.
-            """
-            edges = list(self._edges)
-            assert len(edges) == 2
-            try:
-                return edges[not edges.index(edge)]
-            except IndexError:
-                raise ValueError("Following from disconnected edge")
 
         def equals(self, other, thres=2e-8):
             """
@@ -199,6 +179,16 @@ class Graph:
         self._source_polygons = set()
 
         self.add_polygons(polygons)
+
+    def __repr__(self):
+        buf = []
+        for node in self._nodes:
+            buf.append(repr(node))
+        for edge in self._edges:
+            buf.append(repr(edge))
+        for poly in self._source_polygons:
+            buf.append(repr(poly))
+        return "\n".join(buf) + "\n"
 
     def add_polygons(self, polygons):
         """
@@ -772,29 +762,22 @@ class Graph:
 
         self._remove_orphaned_nodes()
 
-    def _remove_3ary_edges(self, large_first=False):
+    def _remove_3ary_edges(self):
         """
-        Remove edges between pairs of nodes that have 3 or more edges.
-        This removes triangles that can't be traced.
+        Remove edges between pairs of nodes that have odd numbers of
+        edges.  This removes triangles that can't be traced.
         """
-        if large_first:
-            max_ary = 0
-            for node in self._nodes:
-                max_ary = max(len(node._edges), max_ary)
-            order = list(range(max_ary + 1, 2, -1))
-        else:
-            order = [3]
+        removals = []
+        for edge in list(self._edges):
+            nedges_a = len(edge._nodes[0]._edges)
+            nedges_b = len(edge._nodes[1]._edges)
+            if (nedges_a % 2 == 1 and nedges_a >= 3 and
+                nedges_b % 2 == 1 and nedges_b >= 3):
+                removals.append(edge)
 
-        for i in order:
-            removals = []
-            for edge in list(self._edges):
-                if (len(edge._nodes[0]._edges) >= i and
-                    len(edge._nodes[1]._edges) >= i):
-                    removals.append(edge)
-
-            for edge in removals:
-                if edge in self._edges:
-                    self.remove_edge(edge)
+        for edge in removals:
+            if edge in self._edges:
+                self._remove_edge(edge)
 
     def _remove_orphaned_nodes(self):
         """
@@ -820,6 +803,36 @@ class Graph:
         """
         from . import polygon as mpolygon
 
+        def pick_next_edge(node, last_edge):
+            # Pick the next edge when arriving at a node from
+            # last_edge.  If there's only one other edge, the choice
+            # is obvious.  If there's more than one, disfavor an edge
+            # with the same normal as the previous edge, in order to
+            # trace 4-connected nodes into separate distinct shapes
+            # and avoid edge crossings.
+            candidates = []
+            for edge in node._edges:
+                if not edge._followed:
+                    candidates.append(edge)
+            if len(candidates) == 0:
+                raise ValueError("No more edges to follow")
+            elif len(candidates) == 1:
+                return candidates[0]
+
+            for edge in candidates:
+                last_edge_cross = math_util.cross(
+                    last_edge._nodes[0]._point, last_edge._nodes[1]._point)
+                if (not
+                    np.all(math_util.cross(
+                        edge._nodes[0]._point, edge._nodes[1]._point) ==
+                           last_edge_cross) or
+                    np.all(math_util.cross(
+                        edge._nodes[0]._point, edge._nodes[1]._point) ==
+                           last_edge_cross)):
+                    return edge
+
+            return candidates[0]
+
         polygons = []
         edges = set(self._edges)  # copy
         for edge in self._edges:
@@ -836,11 +849,7 @@ class Graph:
                         points.append(node._point)
                 else:
                     points.append(node._point)
-                for edge in node._edges:
-                    if edge._followed is False:
-                        break
-                else:
-                    raise ValueError("No more edges to follow")
+                edge = pick_next_edge(node, edge)
                 edge._followed = True
                 edges.discard(edge)
                 node = edge.follow(node)
